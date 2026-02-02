@@ -69,9 +69,9 @@ Only change these if you accept re-applying them after each `composer update`:
 
 | What | Where (in vendor) | Note |
 |------|-------------------|------|
-| License error message / support link | `vendor/kreativdev/installer/files/vendor/rachidlaasri/laravel-installer/.../LicenseController.php` | Points to original author support; replace with your support URL if you keep license check. |
-| Item name | `vendor/kreativdev/installer/src/config/kdinstaller.php` | `'item_name' => "AqarHub"` – change to your product name only if you keep the package and accept vendor edits. |
-| Email collector API | Same config | `'email_api' => 'https://kreativdev.com/...'` – set to your URL or disable if you don’t use it. |
+| License error message / support link | `packages/rajaahsandev/installer/files/vendor/rachidlaasri/laravel-installer/.../LicenseController.php` | Points to original author support; replace with your support URL if you keep license check. |
+| Item name | `packages/rajaahsandev/installer/src/config/kdinstaller.php` | `'item_name' => "AqarHub"` – change to your product name only if you keep the package and accept vendor edits. |
+| Email collector API | Same config | `'email_api' => '' (or your URL)` – set to your URL or disable if you don’t use it. |
 
 Better long-term: **publish the installer config/views** (if the package supports it) into your app and override only what you need, so you don’t rely on editing `vendor/`.
 

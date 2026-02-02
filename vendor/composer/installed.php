@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '31354f62bf7e8b14db9ad64dcb8c0d4b3f4372a9',
+        'reference' => '350f53ba2ce1a297428fcf9ae5c31b2cd0ade6b4',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -526,15 +526,6 @@
                 0 => '*',
             ),
         ),
-        'kreativdev/installer' => array(
-            'pretty_version' => '1.1.0',
-            'version' => '1.1.0.0',
-            'reference' => 'd43d50386f91bea3c09b19695235331a19bf6f2c',
-            'type' => 'library',
-            'install_path' => __DIR__ . '/../kreativdev/installer',
-            'aliases' => array(),
-            'dev_requirement' => false,
-        ),
         'laravel-notification-channels/webpush' => array(
             'pretty_version' => '7.1.0',
             'version' => '7.1.0.0',
@@ -556,7 +547,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '31354f62bf7e8b14db9ad64dcb8c0d4b3f4372a9',
+            'reference' => '350f53ba2ce1a297428fcf9ae5c31b2cd0ade6b4',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -1140,8 +1131,8 @@
         'psr/http-client-implementation' => array(
             'dev_requirement' => false,
             'provided' => array(
-                0 => '1.0',
-                1 => '*',
+                0 => '*',
+                1 => '1.0',
             ),
         ),
         'psr/http-factory' => array(
@@ -1156,8 +1147,8 @@
         'psr/http-factory-implementation' => array(
             'dev_requirement' => false,
             'provided' => array(
-                0 => '1.0',
-                1 => '*',
+                0 => '*',
+                1 => '1.0',
             ),
         ),
         'psr/http-message' => array(
@@ -1172,8 +1163,8 @@
         'psr/http-message-implementation' => array(
             'dev_requirement' => false,
             'provided' => array(
-                0 => '1.0',
-                1 => '*',
+                0 => '*',
+                1 => '1.0',
             ),
         ),
         'psr/log' => array(
@@ -1222,6 +1213,15 @@
             'reference' => 'b751b4c23dba893e9a4a12f881a6fd8fa921d228',
             'type' => 'library',
             'install_path' => __DIR__ . '/../rachidlaasri/laravel-installer',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'rajaahsandev/installer' => array(
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '435ef9ef8867619da7449a9808fe0e62f32490a1',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../rajaahsandev/installer',
             'aliases' => array(),
             'dev_requirement' => false,
         ),

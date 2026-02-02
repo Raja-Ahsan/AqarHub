@@ -7,6 +7,12 @@
     "laravel"
   ],
   "license": "MIT",
+  "repositories": [
+    {
+      "type": "path",
+      "url": "./packages/rajaahsandev/installer"
+    }
+  ],
   "require": {
     "php": "^8.2",
     "academe/omnipay-authorizenetapi": "^3.1",
@@ -17,7 +23,7 @@
     "fideloper/proxy": "^4.4",
     "fruitcake/laravel-cors": "^2.0",
     "guzzlehttp/guzzle": "^7.0.1",
-    "kreativdev/installer": "^1.1",
+    "rajaahsandev/installer": "@dev",
     "laravel-notification-channels/webpush": "^7.0.0",
     "laravel/framework": "^9.0",
     "laravel/socialite": "^5.5",
@@ -78,6 +84,9 @@
     "sort-packages": true,
     "allow-plugins": {
       "php-http/discovery": true
+    },
+    "audit": {
+      "block-insecure": false
     }
   },
   "minimum-stability": "dev",

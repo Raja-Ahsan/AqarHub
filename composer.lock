@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c30aabc25174cd902d89b132cc77744f",
+    "content-hash": "5cee272b7d3880ce2a83c09d296b8595",
     "packages": [
         {
             "name": "academe/authorizenet-objects",
@@ -2175,53 +2175,6 @@
                 }
             ],
             "time": "2025-02-03T10:55:03+00:00"
-        },
-        {
-            "name": "kreativdev/installer",
-            "version": "1.1.0",
-            "source": {
-                "type": "git",
-                "url": "https://gitlab.com/packages9950522/installer.git",
-                "reference": "d43d50386f91bea3c09b19695235331a19bf6f2c"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://gitlab.com/api/v4/projects/packages9950522%2Finstaller/repository/archive.zip?sha=d43d50386f91bea3c09b19695235331a19bf6f2c",
-                "reference": "d43d50386f91bea3c09b19695235331a19bf6f2c",
-                "shasum": ""
-            },
-            "require": {
-                "rachidlaasri/laravel-installer": "^4.1"
-            },
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "providers": [
-                        "Kreativdev\\Installer\\KdInstallerServiceProvider"
-                    ]
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Kreativdev\\Installer\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "KreativDev",
-                    "email": "kreativdev.envato@gmail.com"
-                }
-            ],
-            "description": "This package will add installer in Laravel Items of KreativDev (Non-SAAS)",
-            "support": {
-                "issues": "https://gitlab.com/packages9950522/installer/-/issues",
-                "source": "https://gitlab.com/packages9950522/installer/-/tree/1.1.0"
-            },
-            "time": "2024-07-05T18:30:11+00:00"
         },
         {
             "name": "laravel-notification-channels/webpush",
@@ -6182,6 +6135,44 @@
             ],
             "abandoned": true,
             "time": "2020-05-19T13:19:45+00:00"
+        },
+        {
+            "name": "rajaahsandev/installer",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "./packages/rajaahsandev/installer",
+                "reference": "435ef9ef8867619da7449a9808fe0e62f32490a1"
+            },
+            "require": {
+                "rachidlaasri/laravel-installer": "^4.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Rajaahsandev\\Installer\\KdInstallerServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Rajaahsandev\\Installer\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "RajaahsanDev",
+                    "email": "support@rajaahsandev.com"
+                }
+            ],
+            "description": "Installer package for Laravel (AqarHub / LegacyTech)",
+            "transport-options": {
+                "relative": true
+            }
         },
         {
             "name": "ralouphie/getallheaders",
@@ -12531,12 +12522,14 @@
     ],
     "aliases": [],
     "minimum-stability": "dev",
-    "stability-flags": {},
+    "stability-flags": {
+        "rajaahsandev/installer": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.2"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }

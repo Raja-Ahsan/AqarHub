@@ -2528,56 +2528,6 @@
             "install-path": "../hamcrest/hamcrest-php"
         },
         {
-            "name": "kreativdev/installer",
-            "version": "1.1.0",
-            "version_normalized": "1.1.0.0",
-            "source": {
-                "type": "git",
-                "url": "https://gitlab.com/packages9950522/installer.git",
-                "reference": "d43d50386f91bea3c09b19695235331a19bf6f2c"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://gitlab.com/api/v4/projects/packages9950522%2Finstaller/repository/archive.zip?sha=d43d50386f91bea3c09b19695235331a19bf6f2c",
-                "reference": "d43d50386f91bea3c09b19695235331a19bf6f2c",
-                "shasum": ""
-            },
-            "require": {
-                "rachidlaasri/laravel-installer": "^4.1"
-            },
-            "time": "2024-07-05T18:30:11+00:00",
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "providers": [
-                        "Kreativdev\\Installer\\KdInstallerServiceProvider"
-                    ]
-                }
-            },
-            "installation-source": "dist",
-            "autoload": {
-                "psr-4": {
-                    "Kreativdev\\Installer\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "KreativDev",
-                    "email": "kreativdev.envato@gmail.com"
-                }
-            ],
-            "description": "This package will add installer in Laravel Items of KreativDev (Non-SAAS)",
-            "support": {
-                "issues": "https://gitlab.com/packages9950522/installer/-/issues",
-                "source": "https://gitlab.com/packages9950522/installer/-/tree/1.1.0"
-            },
-            "install-path": "../kreativdev/installer"
-        },
-        {
             "name": "laravel-notification-channels/webpush",
             "version": "7.1.0",
             "version_normalized": "7.1.0.0",
@@ -7571,6 +7521,47 @@
             ],
             "abandoned": true,
             "install-path": "../rachidlaasri/laravel-installer"
+        },
+        {
+            "name": "rajaahsandev/installer",
+            "version": "dev-main",
+            "version_normalized": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "./packages/rajaahsandev/installer",
+                "reference": "435ef9ef8867619da7449a9808fe0e62f32490a1"
+            },
+            "require": {
+                "rachidlaasri/laravel-installer": "^4.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Rajaahsandev\\Installer\\KdInstallerServiceProvider"
+                    ]
+                }
+            },
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Rajaahsandev\\Installer\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "RajaahsanDev",
+                    "email": "support@rajaahsandev.com"
+                }
+            ],
+            "description": "Installer package for Laravel (AqarHub / LegacyTech)",
+            "transport-options": {
+                "relative": true
+            },
+            "install-path": "../rajaahsandev/installer"
         },
         {
             "name": "ralouphie/getallheaders",
