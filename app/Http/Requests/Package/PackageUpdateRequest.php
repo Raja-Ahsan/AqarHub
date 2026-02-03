@@ -38,7 +38,7 @@ class PackageUpdateRequest extends FormRequest
             'number_of_project_types' => 'required|numeric',
             'number_of_project_gallery_images' => 'required|numeric',
             'number_of_project_additionl_specifications' => 'required|numeric',
-
+            'has_ai_features' => 'nullable|boolean',
         ];
     }
     public function messages(): array

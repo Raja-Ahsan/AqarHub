@@ -39,7 +39,8 @@ class PackageStoreRequest extends FormRequest
             'number_of_project_additionl_specifications' => 'required|numeric',
 
             'status' => 'required',
-            'trial_days' => 'required_if:is_trial,1'
+            'trial_days' => 'required_if:is_trial,1',
+            'has_ai_features' => 'nullable|boolean',
         ];
     }
     public function messages(): array

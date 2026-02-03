@@ -135,7 +135,7 @@
                                                     {{ __('Choose Image') }}
                                                     <input type="file" class="img-input" name="thumbnail">
                                                 </div>
-                                                @if(config('ai.enabled'))
+                                                @if(config('ai.enabled') && $currentPackage && ($currentPackage->has_ai_features ?? false))
                                                 <div class="mt-2">
                                                     <button type="button" class="btn btn-sm btn-outline-secondary ai-suggest-from-image-btn">
                                                         {{ __('Suggest from image') }}
@@ -461,7 +461,7 @@
                                                             <div
                                                                 class="form-group {{ $language->direction == 1 ? 'rtl text-right' : '' }}">
                                                                 <label>{{ __('Description') }} *</label>
-                                                                @if(config('ai.enabled'))
+                                                                @if(config('ai.enabled') && $currentPackage && ($currentPackage->has_ai_features ?? false))
                                                                 <div class="mb-2">
                                                                     <button type="button" class="btn btn-sm btn-outline-primary ai-generate-desc-btn"
                                                                         data-title-name="{{ $language->code }}_title"
@@ -702,12 +702,29 @@
     </script>
     <script type="text/javascript" src="{{ asset('assets/js/admin-dropzone.js') }}"></script>
     <script src="{{ asset('assets/js/property.js') }}"></script>
-    @if(config('ai.enabled'))
+    @if(config('ai.enabled') && $currentPackage && ($currentPackage->has_ai_features ?? false))
     <script>
     var defaultLang = '{{ $languages->where("is_default", 1)->first()->code ?? "en" }}';
     var aiAnalyzeUrl = '{{ route("ai.assistant.analyze_image") }}';
     var aiTranslateUrl = '{{ route("ai.assistant.translate") }}';
     var aiCsrf = '{{ csrf_token() }}';
+    function setEditorContent(editorId, content) {
+        if (typeof tinymce !== 'undefined') {
+            var ed = tinymce.get(editorId);
+            if (ed) { ed.setContent(content || ''); return; }
+        }
+        if (typeof $ !== 'undefined' && $('#' + editorId).length) {
+            try { $('#' + editorId).summernote('code', content || ''); } catch (e) {}
+        }
+    }
+    function getEditorContent(editorId) {
+        if (typeof tinymce !== 'undefined') {
+            var ed = tinymce.get(editorId);
+            if (ed) return ed.getContent();
+        }
+        try { if (typeof $ !== 'undefined' && $('#' + editorId).length) return $('#' + editorId).summernote('code'); } catch (e) {}
+        return '';
+    }
     (function() {
         var url = "{{ route('ai.assistant.generate_description') }}";
         var token = "{{ csrf_token() }}";
@@ -751,9 +768,7 @@
                 }).then(function(r) { return r.json(); }).then(function(data) {
                     statusEl.textContent = data.success ? '{{ __("Done") }}' : (data.error || '');
                     if (data.success) {
-                        if (data.description && typeof $ !== 'undefined' && $('#' + descId).length) {
-                            try { $('#' + descId).summernote('code', data.description); } catch (e) {}
-                        }
+                        if (data.description) setEditorContent(descId, data.description);
                         var langCode = descId.replace('_description', '');
                         if (data.meta_keywords) {
                             var kwEl = document.querySelector('input[name="' + langCode + '_meta_keyword"]');
@@ -795,9 +810,7 @@
                         .then(function(data) {
                             statusEl.textContent = data.success ? '{{ __("Done") }}' : (data.error || '');
                             if (data.success) {
-                                if (data.description && typeof $ !== 'undefined' && $('#' + defaultLang + '_description').length) {
-                                    try { $('#' + defaultLang + '_description').summernote('code', data.description); } catch (e) {}
-                                }
+                                if (data.description) setEditorContent(defaultLang + '_description', data.description);
                                 if (data.tags && data.tags.length) {
                                     var kw = document.querySelector('input[name="' + defaultLang + '_meta_keyword"]');
                                     if (kw && typeof $ !== 'undefined' && $(kw).data('role') === 'tagsinput') {
@@ -817,9 +830,7 @@
                         .then(function(data) {
                             statusEl.textContent = data.success ? '{{ __("Done") }}' : (data.error || '');
                             if (data.success) {
-                                if (data.description && typeof $ !== 'undefined' && $('#' + defaultLang + '_description').length) {
-                                    try { $('#' + defaultLang + '_description').summernote('code', data.description); } catch (e) {}
-                                }
+                                if (data.description) setEditorContent(defaultLang + '_description', data.description);
                                 if (data.tags && data.tags.length) {
                                     var kw = document.querySelector('input[name="' + defaultLang + '_meta_keyword"]');
                                     if (kw && typeof $ !== 'undefined' && $(kw).data('role') === 'tagsinput') {
@@ -841,8 +852,7 @@
                 var targetDescId = this.getAttribute('data-target-desc-id');
                 var titleEl = document.querySelector('input[name="' + defaultCode + '_title"]');
                 var titleVal = titleEl ? titleEl.value : '';
-                var descVal = '';
-                try { if (typeof $ !== 'undefined' && $('#' + defaultCode + '_description').length) descVal = $('#' + defaultCode + '_description').summernote('code'); } catch (e) {}
+                var descVal = getEditorContent(defaultCode + '_description');
                 var statusEl = btn.closest('.mb-2').querySelector('.ai-generate-status');
                 if (!titleVal.trim() && !descVal.trim()) { statusEl.textContent = '{{ __("Fill default language first") }}'; return; }
                 statusEl.textContent = '{{ __("Translating...") }}';
@@ -868,9 +878,7 @@
                         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': aiCsrf, 'Accept': 'application/json' },
                         body: JSON.stringify({ text: descVal, target_language: targetLang })
                     }).then(function(r) { return r.json(); }).then(function(data) {
-                        if (data.success && data.translation && typeof $ !== 'undefined' && $('#' + targetDescId).length) {
-                            try { $('#' + targetDescId).summernote('code', data.translation); } catch (e) {}
-                        }
+                        if (data.success && data.translation) setEditorContent(targetDescId, data.translation);
                         onDone();
                     }).catch(function() { onDone(); });
                 }

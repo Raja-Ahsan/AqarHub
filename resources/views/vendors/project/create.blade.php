@@ -73,7 +73,8 @@
                                 </div>
                             </div>
                             <form id="carForm" action="{{ route('vendor.project_management.store_project') }}"
-                                method="POST" enctype="multipart/form-data">
+                                method="POST" enctype="multipart/form-data"
+                                data-default-lang="{{ $languages->where('is_default', 1)->first()->code ?? 'en' }}">
                                 @csrf
                                 <input type="hidden" name="type" value="{{ request()->type }}">
 
@@ -92,6 +93,14 @@
                                                     {{ __('Choose Image') }}
                                                     <input type="file" class="img-input" name="featured_image">
                                                 </div>
+                                                @if(config('ai.enabled') && $currentPackage && ($currentPackage->has_ai_features ?? false))
+                                                <div class="mt-2">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary ai-suggest-from-image-btn">
+                                                        {{ __('Suggest from image') }}
+                                                    </button>
+                                                    <span class="ai-analyze-status text-muted small ml-2"></span>
+                                                </div>
+                                                @endif
                                             </div>
                                         </div>
                                     </div>
@@ -208,6 +217,26 @@
                                                             <div
                                                                 class="form-group {{ $language->direction == 1 ? 'rtl text-right' : '' }}">
                                                                 <label>{{ __('Description') }} *</label>
+                                                                @if(config('ai.enabled') && $currentPackage && ($currentPackage->has_ai_features ?? false))
+                                                                <div class="mb-2">
+                                                                    <button type="button" class="btn btn-sm btn-outline-primary ai-generate-desc-btn"
+                                                                        data-title-name="{{ $language->code }}_title"
+                                                                        data-address-name="{{ $language->code }}_address"
+                                                                        data-desc-id="{{ $language->code }}_description">
+                                                                        {{ __('Generate with AI') }}
+                                                                    </button>
+                                                                    @if($language->is_default != 1)
+                                                                    <button type="button" class="btn btn-sm btn-outline-info ai-translate-btn ml-1"
+                                                                        data-default-lang="{{ $languages->where('is_default', 1)->first()->code ?? 'en' }}"
+                                                                        data-target-lang="{{ $language->name }}"
+                                                                        data-target-title-name="{{ $language->code }}_title"
+                                                                        data-target-desc-id="{{ $language->code }}_description">
+                                                                        {{ __('Translate from default') }}
+                                                                    </button>
+                                                                    @endif
+                                                                    <span class="ai-generate-status text-muted small ml-2"></span>
+                                                                </div>
+                                                                @endif
                                                                 <textarea id="{{ $language->code }}_description" class="form-control summernote"
                                                                     name="{{ $language->code }}_description" data-height="300"></textarea>
                                                             </div>
@@ -388,4 +417,158 @@
     </script>
     <script type="text/javascript" src="{{ asset('assets/js/admin-project-dropzone.js') }}"></script>
     <script type="text/javascript" src="{{ asset('assets/js/property.js') }}"></script>
+    @if(config('ai.enabled') && $currentPackage && ($currentPackage->has_ai_features ?? false))
+    <script>
+    function setEditorContent(editorId, content) {
+        if (typeof tinymce !== 'undefined') {
+            var ed = tinymce.get(editorId);
+            if (ed) { ed.setContent(content || ''); return; }
+        }
+        if (typeof $ !== 'undefined' && $('#' + editorId).length) {
+            try { $('#' + editorId).summernote('code', content || ''); } catch (e) {}
+        }
+    }
+    function getEditorContent(editorId) {
+        if (typeof tinymce !== 'undefined') {
+            var ed = tinymce.get(editorId);
+            if (ed) return ed.getContent();
+        }
+        try { if (typeof $ !== 'undefined' && $('#' + editorId).length) return $('#' + editorId).summernote('code'); } catch (e) {}
+        return '';
+    }
+    (function() {
+        var url = "{{ route('ai.assistant.generate_description') }}";
+        var token = "{{ csrf_token() }}";
+        function getFormContextForAi() {
+            var ctx = {};
+            if (typeof $ === 'undefined') return ctx;
+            var inp = function(name) { var e = document.querySelector('input[name="' + name + '"], textarea[name="' + name + '"]'); return e ? (e.value || '').trim() : ''; };
+            var sel = function(name) { var o = $('select[name="' + name + '"] option:selected'); return (o.length && o.val()) ? o.text().trim() : ''; };
+            if (inp('min_price')) ctx.min_price = inp('min_price');
+            if (inp('max_price')) ctx.max_price = inp('max_price');
+            if (sel('status')) ctx.status = sel('status');
+            return ctx;
+        }
+        document.querySelectorAll('.ai-generate-desc-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var titleName = this.getAttribute('data-title-name');
+                var addressName = this.getAttribute('data-address-name');
+                var descId = this.getAttribute('data-desc-id');
+                var title = (document.querySelector('input[name="' + titleName + '"]') || {}).value || '';
+                var address = (document.querySelector('input[name="' + addressName + '"]') || {}).value || '';
+                var statusEl = this.closest('.mb-2').querySelector('.ai-generate-status');
+                if (!title.trim()) { statusEl.textContent = '{{ __("Enter a title first") }}'; return; }
+                statusEl.textContent = '{{ __("Generating...") }}';
+                this.disabled = true;
+                var payload = { title: title, location: address, features: '' };
+                if (typeof getFormContextForAi === 'function') { var ctx = getFormContextForAi(); for (var k in ctx) if (ctx[k]) payload[k] = ctx[k]; }
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).then(function(r) { return r.json(); }).then(function(data) {
+                    statusEl.textContent = data.success ? '{{ __("Done") }}' : (data.error || '');
+                    if (data.success) {
+                        if (data.description) setEditorContent(descId, data.description);
+                        var langCode = descId.replace('_description', '');
+                        if (data.meta_keywords) {
+                            var kwEl = document.querySelector('input[name="' + langCode + '_meta_keyword"]');
+                            if (kwEl) {
+                                if (typeof $ !== 'undefined' && $(kwEl).data('role') === 'tagsinput') {
+                                    $(kwEl).tagsinput('removeAll');
+                                    data.meta_keywords.split(',').forEach(function(t) { var s = t.trim(); if (s) $(kwEl).tagsinput('add', s); });
+                                } else { kwEl.value = data.meta_keywords; }
+                            }
+                        }
+                        if (data.meta_description) {
+                            var mdEl = document.querySelector('textarea[name="' + langCode + '_meta_description"]');
+                            if (mdEl) mdEl.value = data.meta_description;
+                        }
+                    }
+                }).catch(function() { statusEl.textContent = '{{ __("Error") }}'; }).finally(function() { btn.disabled = false; });
+            });
+        });
+    })();
+    var aiAnalyzeUrl = '{{ route("ai.assistant.analyze_image") }}';
+    var aiTranslateUrl = '{{ route("ai.assistant.translate") }}';
+    var aiCsrf = '{{ csrf_token() }}';
+    (function() {
+        var form = document.getElementById('carForm');
+        if (!form) return;
+        var defaultLang = form.getAttribute('data-default-lang') || 'en';
+        var suggestBtn = document.querySelector('.ai-suggest-from-image-btn');
+        if (suggestBtn) {
+            suggestBtn.addEventListener('click', function() {
+                var input = document.querySelector('input[name="featured_image"]');
+                var file = input && input.files && input.files[0];
+                var statusEl = suggestBtn.closest('.mt-2').querySelector('.ai-analyze-status');
+                if (!file || !file.type.match(/^image\//)) {
+                    statusEl.textContent = '{{ __("Choose an image first") }}';
+                    return;
+                }
+                statusEl.textContent = '{{ __("Analyzing...") }}';
+                suggestBtn.disabled = true;
+                var fd = new FormData();
+                fd.append('image', file);
+                fd.append('_token', aiCsrf);
+                fetch(aiAnalyzeUrl, { method: 'POST', body: fd })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        statusEl.textContent = data.success ? '{{ __("Done") }}' : (data.error || '');
+                        if (data.success) {
+                            if (data.description) setEditorContent(defaultLang + '_description', data.description);
+                            if (data.tags && data.tags.length) {
+                                var kw = document.querySelector('input[name="' + defaultLang + '_meta_keyword"]');
+                                if (kw && typeof $ !== 'undefined' && $(kw).data('role') === 'tagsinput') {
+                                    data.tags.forEach(function(t) { var s = (t && t.trim) ? t.trim() : String(t).trim(); if (s) $(kw).tagsinput('add', s); });
+                                } else if (kw) { kw.value = (kw.value ? kw.value + ',' : '') + data.tags.join(','); }
+                            }
+                        }
+                    })
+                    .catch(function() { statusEl.textContent = '{{ __("Error") }}'; })
+                    .finally(function() { suggestBtn.disabled = false; });
+            });
+        }
+        document.querySelectorAll('.ai-translate-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var defaultCode = this.getAttribute('data-default-lang');
+                var targetTitleName = this.getAttribute('data-target-title-name');
+                var targetDescId = this.getAttribute('data-target-desc-id');
+                var titleEl = document.querySelector('input[name="' + defaultCode + '_title"]');
+                var titleVal = titleEl ? titleEl.value : '';
+                var descVal = getEditorContent(defaultCode + '_description');
+                var statusEl = btn.closest('.mb-2').querySelector('.ai-generate-status');
+                if (!titleVal.trim() && !descVal.trim()) { statusEl.textContent = '{{ __("Fill default language first") }}'; return; }
+                statusEl.textContent = '{{ __("Translating...") }}';
+                btn.disabled = true;
+                var pending = (titleVal.trim() ? 1 : 0) + (descVal.trim() ? 1 : 0);
+                function onDone() { pending--; if (pending <= 0) { statusEl.textContent = '{{ __("Done") }}'; btn.disabled = false; } }
+                if (titleVal.trim()) {
+                    fetch(aiTranslateUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': aiCsrf, 'Accept': 'application/json' },
+                        body: JSON.stringify({ text: titleVal, target_language: this.getAttribute('data-target-lang') })
+                    }).then(function(r) { return r.json(); }).then(function(data) {
+                        if (data.success && data.translation) {
+                            var t = document.querySelector('input[name="' + targetTitleName + '"]');
+                            if (t) t.value = data.translation;
+                        }
+                        onDone();
+                    }).catch(function() { onDone(); });
+                }
+                if (descVal.trim()) {
+                    fetch(aiTranslateUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': aiCsrf, 'Accept': 'application/json' },
+                        body: JSON.stringify({ text: descVal, target_language: this.getAttribute('data-target-lang') })
+                    }).then(function(r) { return r.json(); }).then(function(data) {
+                        if (data.success && data.translation) setEditorContent(targetDescId, data.translation);
+                        onDone();
+                    }).catch(function() { onDone(); });
+                }
+            });
+        });
+    })();
+    </script>
+    @endif
 @endsection

@@ -12,7 +12,8 @@ class Package extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'is_featured' => 'boolean'
+        'is_featured' => 'boolean',
+        'has_ai_features' => 'boolean',
     ];
 
     public function memberships()

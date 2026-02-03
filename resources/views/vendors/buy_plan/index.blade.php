@@ -121,6 +121,7 @@
                             {{ $package->number_of_project_gallery_images }}</li>
                         <li>{{ __('Additional Feature (per project)') . ' : ' }}
                             {{ $package->number_of_property_adittionl_specifications }}</li>
+                        <li>{{ __('AI Assistant (Generate with AI, Suggest from image, Translate)') . ' : ' }} {{ ($package->has_ai_features ?? false) ? __('Yes') : __('No') }}</li>
                     </ul>
 
                     @php

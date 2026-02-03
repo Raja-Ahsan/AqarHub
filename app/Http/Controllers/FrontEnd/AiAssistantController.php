@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\FrontEnd;
 
 use App\Http\Controllers\Controller;
+use App\Http\Helpers\VendorPermissionHelper;
 use App\Models\AiChatMessage;
 use App\Services\AiAssistantService;
 use Illuminate\Http\JsonResponse;
@@ -214,6 +215,9 @@ class AiAssistantController extends Controller
             if (! Auth::guard('vendor')->check() && ! Auth::guard('admin')->check()) {
                 return response()->json(['success' => false, 'error' => 'Unauthorized.'], 401);
             }
+            if (Auth::guard('vendor')->check() && ! $this->vendorPackageHasAi()) {
+                return response()->json(['success' => false, 'error' => 'Your package does not include AI features.'], 403);
+            }
             if (! $this->aiService->isAvailable()) {
                 return response()->json(['success' => false, 'error' => 'AI assistant is not available. Set OPENAI_API_KEY in .env and AI_ASSISTANT_ENABLED=true.'], 503);
             }
@@ -281,6 +285,9 @@ class AiAssistantController extends Controller
         if (! Auth::guard('vendor')->check() && ! Auth::guard('admin')->check()) {
             return response()->json(['success' => false, 'error' => 'Unauthorized.'], 401);
         }
+        if (Auth::guard('vendor')->check() && ! $this->vendorPackageHasAi()) {
+            return response()->json(['success' => false, 'error' => 'Your package does not include AI features.'], 403);
+        }
         if (! $this->aiService->isAvailable()) {
             return response()->json(['success' => false, 'error' => 'AI assistant is not available.'], 503);
         }
@@ -319,6 +326,9 @@ class AiAssistantController extends Controller
         if (! Auth::guard('vendor')->check() && ! Auth::guard('admin')->check()) {
             return response()->json(['success' => false, 'error' => 'Unauthorized.'], 401);
         }
+        if (Auth::guard('vendor')->check() && ! $this->vendorPackageHasAi()) {
+            return response()->json(['success' => false, 'error' => 'Your package does not include AI features.'], 403);
+        }
         if (! $this->aiService->isAvailable()) {
             return response()->json(['success' => false, 'error' => 'AI assistant is not available.'], 503);
         }
@@ -345,5 +355,22 @@ class AiAssistantController extends Controller
             'success' => true,
             'translation' => $result['translation'],
         ]);
+    }
+
+    /**
+     * Whether the current vendor's package includes AI features. Admin always has access.
+     */
+    protected function vendorPackageHasAi(): bool
+    {
+        if (Auth::guard('admin')->check()) {
+            return true;
+        }
+        $vendorId = Auth::guard('vendor')->id();
+        if (! $vendorId) {
+            return false;
+        }
+        $package = VendorPermissionHelper::currentPackagePermission($vendorId);
+
+        return $package && $package->has_ai_features;
     }
 }

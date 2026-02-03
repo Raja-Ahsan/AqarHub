@@ -323,6 +323,16 @@
                         </div>
 
                         <div class="form-group">
+                            <label class="form-label">{{ __('AI Assistant Features') }}</label>
+                            <div class="form-check">
+                                <input type="hidden" name="has_ai_features" value="0">
+                                <input type="checkbox" class="form-check-input" name="has_ai_features" id="has_ai_features" value="1">
+                                <label class="form-check-label" for="has_ai_features">{{ __('Include AI features (Generate with AI, Suggest from image, Translate)') }}</label>
+                            </div>
+                            <p class="text-muted small mb-0">{{ __('Vendors with this package will get AI-powered property tools.') }}</p>
+                        </div>
+
+                        <div class="form-group">
                             <label for="status">{{ __('Status') }}*</label>
                             <select id="status" class="form-control ltr" name="status">
                                 <option value="" selected disabled>{{ __('Select a status') }}</option>

@@ -2,6 +2,16 @@
 
 @includeIf('backend.partials.rtl-style')
 
+@section('style')
+<style>
+  /* Override global rule that hides checkboxes so AI Assistant checkbox is visible on this page */
+  #has_ai_features {
+    position: relative !important;
+    left: 0 !important;
+  }
+</style>
+@endsection
+
 @section('content')
     <div class="page-header">
         <h4 class="page-title">{{ __('Edit package') }}</h4>
@@ -94,6 +104,17 @@
                                     </select>
                                     <p id="err_term" class="mb-0 text-danger em"></p>
                                 </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">{{ __('AI Assistant Features') }}</label>
+                                    <div class="form-check">
+                                        <input type="hidden" name="has_ai_features" value="0">
+                                        <input type="checkbox" class="form-check-input" name="has_ai_features" id="has_ai_features" value="1" {{ ($package->has_ai_features ?? false) ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="has_ai_features">{{ __('Include AI features (Generate with AI, Suggest from image, Translate)') }}</label>
+                                    </div>
+                                    <p class="text-muted small mb-0">{{ __('Vendors with this package will get AI-powered property tools.') }}</p>
+                                </div>
+
                                 <div class="form-group">
                                     <label class="form-label">{{ __('Number of Agents') }} *</label>
                                     <input type="text" class="form-control" name="number_of_agent"
@@ -189,7 +210,6 @@
                                         <small>{{ __('Enter 999999, than it will appear as unlimited') }}</small>
                                     </p>
                                 </div>
-
 
                                 <div class="form-group">
                                     <label for="status">{{ __('Status') }}*</label>
