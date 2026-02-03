@@ -20,27 +20,27 @@
     @php
         $primaryColor = 'F57F4B'; 
         $secoundaryColor = '255056';
-        // check, whether color has '#' or not, will return 0 or 1
-        function checkColorCode($color)
-        {
-            return preg_match('/^#[a-f0-9]{6}/i', $color);
+        if (!function_exists('checkColorCode')) {
+            function checkColorCode($color)
+            {
+                return preg_match('/^#[a-f0-9]{6}/i', $color);
+            }
         }
-
-        // if, primary color value does not contain '#', then add '#' before color value
         if (isset($primaryColor) && checkColorCode($primaryColor) == 0 && checkColorCode($secoundaryColor) == 0) {
             $primaryColor = '#' . $primaryColor;
             $secoundaryColor = '#' . $secoundaryColor;
-        } 
-
-        // change decimal point into hex value for opacity
-        function rgb($color = null)
-        {
-            if (!$color) {
-                echo '';
+        }
+        if (!function_exists('rgb')) {
+            function rgb($color = null)
+            {
+                if (!$color) {
+                    echo '';
+                } else {
+                    $hex = htmlspecialchars($color);
+                    [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
+                    echo "$r, $g, $b";
+                }
             }
-            $hex = htmlspecialchars($color);
-            [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
-            echo "$r, $g, $b";
         }
     @endphp
     @includeIf('frontend.partials.styles.styles-v1')
@@ -81,6 +81,7 @@
 
     @includeIf('frontend.partials.scripts.scripts-v1')
     @includeIf('frontend.partials.toastr')
+    @includeIf('frontend.partials.ai-assistant')
 </body>
 
 </html>

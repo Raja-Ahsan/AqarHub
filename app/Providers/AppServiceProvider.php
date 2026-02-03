@@ -12,6 +12,7 @@ use App\Models\Property\Property;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -139,9 +140,14 @@ class AppServiceProvider extends ServiceProvider
       // send this information to only front-end view files
       View::composer('frontend.*', function ($view) {
         // get basic info
-        $basicData = DB::table('basic_settings')
-          ->select('theme_version', 'footer_logo', 'footer_background_image', 'email_address', 'contact_number', 'address', 'primary_color', 'secondary_color', 'whatsapp_status', 'whatsapp_number', 'whatsapp_header_title', 'whatsapp_popup_status', 'whatsapp_popup_message', 'tawkto_status', 'tawkto_direct_chat_link', 'base_currency_symbol', 'base_currency_symbol_position', 'base_currency_text', 'base_currency_text_position', 'hero_section_video_url', 'preloader_status', 'preloader',  'timezone', 'property_country_status', 'property_state_status',  'theme_version', 'google_login_status', 'facebook_login_status')
-          ->first();
+        $basicColumns = ['theme_version', 'footer_logo', 'footer_background_image', 'email_address', 'contact_number', 'address', 'primary_color', 'secondary_color', 'whatsapp_status', 'whatsapp_number', 'whatsapp_header_title', 'whatsapp_popup_status', 'whatsapp_popup_message', 'tawkto_status', 'tawkto_direct_chat_link', 'base_currency_symbol', 'base_currency_symbol_position', 'base_currency_text', 'base_currency_text_position', 'hero_section_video_url', 'preloader_status', 'preloader', 'timezone', 'property_country_status', 'property_state_status', 'theme_version', 'google_login_status', 'facebook_login_status'];
+        if (Schema::hasColumn('basic_settings', 'ai_assistant_status')) {
+          array_unshift($basicColumns, 'ai_assistant_status');
+        }
+        $basicData = DB::table('basic_settings')->select($basicColumns)->first();
+        if ($basicData && !isset($basicData->ai_assistant_status)) {
+          $basicData->ai_assistant_status = 1;
+        }
         if (!Session::has('theme_version')) {
           Session::put('theme_version', $basicData->theme_version);
         }

@@ -400,7 +400,7 @@
                         <h3 class="title">
                             <button class="accordion-button" type="button" data-bs-toggle="collapse"
                                 data-bs-target="#products" aria-expanded="true" aria-controls="products">
-                                {{ __('Related Property') }}
+                                {{ __('Similar Properties') }}
                             </button>
                         </h3>
                         <div id="products" class="collapse show">

@@ -17,6 +17,26 @@ Route::get('/change-language', 'FrontEnd\MiscellaneousController@changeLanguage'
 
 Route::post('/store-subscriber', 'FrontEnd\MiscellaneousController@storeSubscriber')->name('store_subscriber');
 
+Route::post('/ai-assistant/chat', 'FrontEnd\AiAssistantController@chat')
+  ->name('ai.assistant.chat')
+  ->middleware('throttle:30,1');
+
+Route::get('/ai-assistant/search', 'FrontEnd\AiAssistantController@search')
+  ->name('ai.assistant.search')
+  ->middleware('throttle:20,1');
+
+Route::post('/ai-assistant/generate-description', 'FrontEnd\AiAssistantController@generateDescription')
+  ->name('ai.assistant.generate_description')
+  ->middleware('throttle:15,1');
+
+Route::post('/ai-assistant/analyze-image', 'FrontEnd\AiAssistantController@analyzeImage')
+  ->name('ai.assistant.analyze_image')
+  ->middleware('throttle:10,1');
+
+Route::post('/ai-assistant/translate', 'FrontEnd\AiAssistantController@translate')
+  ->name('ai.assistant.translate')
+  ->middleware('throttle:20,1');
+
 Route::get('/offline', 'FrontEnd\HomeController@offline')->middleware('change.lang');
 
 Route::middleware('change.lang')->group(function () {

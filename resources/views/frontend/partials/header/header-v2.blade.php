@@ -52,7 +52,7 @@
                 @endif
                 <!-- Navigation items -->
                 <div class="collapse navbar-collapse">
-                    @php $menuDatas = json_decode($menuInfos); @endphp
+                    @php $menuDatas = json_decode($menuInfos) ?? []; @endphp
                     <ul id="mainMenu" class="navbar-nav mobile-item">
                         @foreach ($menuDatas as $menuData)
                             @php $href = get_href($menuData); @endphp
@@ -65,7 +65,7 @@
                                     <a class="nav-link toggle" href="{{ $href }}">{{ $menuData->text }}<i
                                             class="fal fa-plus"></i></a>
                                     <ul class="menu-dropdown">
-                                        @php $childMenuDatas = $menuData->children; @endphp
+                                        @php $childMenuDatas = $menuData->children ?? []; @endphp
                                         @foreach ($childMenuDatas as $childMenuData)
                                             @php $child_href = get_href($childMenuData); @endphp
                                             <li class="nav-item">

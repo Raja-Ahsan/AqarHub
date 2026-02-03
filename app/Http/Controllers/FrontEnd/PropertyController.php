@@ -337,7 +337,12 @@ class PropertyController extends Controller
         $information['categories'] = $categories;
 
 
-        $information['relatedProperty'] = Property::where([['properties.status', 1], ['properties.approve_status', 1]])->leftJoin('property_contents', 'properties.id', 'property_contents.property_id')
+        // Similar properties: same category, same city/state when set, price ±20%, limit 6
+        $similarQuery = Property::where([['properties.status', 1], ['properties.approve_status', 1]])
+            ->where('properties.id', '!=', $property->propertyId ?? $property->property_id)
+            ->where('properties.category_id', $property->category_id)
+            ->leftJoin('property_contents', 'properties.id', 'property_contents.property_id')
+            ->where('property_contents.language_id', $language->id)
             ->leftJoin('vendors', 'properties.vendor_id', '=', 'vendors.id')
             ->leftJoin('memberships', function ($join) {
                 $join->on('properties.vendor_id', '=', 'memberships.vendor_id')
@@ -345,18 +350,25 @@ class PropertyController extends Controller
                     ->where('memberships.start_date', '<=', Carbon::now()->format('Y-m-d'))
                     ->where('memberships.expire_date', '>=', Carbon::now()->format('Y-m-d'));
             })
-            ->where(function ($query) {
-                $query->where('properties.vendor_id', '=', 0)
-                    ->orWhere(function ($query) {
-                        $query->where([
-                            ['vendors.status', '=', 1],
-
-                        ]);
-                    });
-            })->where([['properties.id', '!=', $property->property_id], ['properties.category_id', $property->category_id]])
-            ->where('property_contents.language_id', $language->id)->latest('properties.created_at')
+            ->where(function ($q) {
+                $q->where('properties.vendor_id', '=', 0)
+                    ->orWhere('vendors.status', '=', 1);
+            });
+        if (!empty($property->city_id)) {
+            $similarQuery->where('properties.city_id', $property->city_id);
+        } elseif (!empty($property->state_id)) {
+            $similarQuery->where('properties.state_id', $property->state_id);
+        }
+        if (!empty($property->price) && $property->price > 0) {
+            $minPrice = $property->price * 0.8;
+            $maxPrice = $property->price * 1.2;
+            $similarQuery->whereBetween('properties.price', [$minPrice, $maxPrice]);
+        }
+        $information['relatedProperty'] = $similarQuery
+            ->latest('properties.created_at')
             ->select('properties.*', 'property_contents.title', 'property_contents.slug', 'property_contents.address', 'property_contents.language_id')
-            ->take(5)->get();
+            ->take(6)
+            ->get();
         $information['info'] = Basic::select('google_recaptcha_status')->first();
         return view('frontend.property.details', $information);
     }

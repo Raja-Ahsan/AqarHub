@@ -168,6 +168,34 @@
                                     </div>
                                 </div>
                             </div>
+                            @if(\Illuminate\Support\Facades\Schema::hasColumn('basic_settings', 'ai_assistant_status'))
+                            <div class="col-lg-10 mx-auto">
+                                <h2 class="mt-3">{{ __('AI Assistant') }}</h2>
+                                <hr>
+                                <div class="row">
+                                    <div class="col-lg-6">
+                                        <div class="form-group">
+                                            <label>{{ __('Show AI chat widget on frontend') }}</label>
+                                            <div class="selectgroup w-100">
+                                                <label class="selectgroup-item">
+                                                    <input type="radio" name="ai_assistant_status" value="1"
+                                                        class="selectgroup-input"
+                                                        {{ ($data->ai_assistant_status ?? 1) == 1 ? 'checked' : '' }}>
+                                                    <span class="selectgroup-button">{{ __('Active') }}</span>
+                                                </label>
+                                                <label class="selectgroup-item">
+                                                    <input type="radio" name="ai_assistant_status" value="0"
+                                                        class="selectgroup-input"
+                                                        {{ ($data->ai_assistant_status ?? 1) == 0 ? 'checked' : '' }}>
+                                                    <span class="selectgroup-button">{{ __('Deactive') }}</span>
+                                                </label>
+                                            </div>
+                                            <p class="text-muted small mb-0">{{ __('Requires AI_ASSISTANT_ENABLED=true and OPENAI_API_KEY in .env') }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
                             <div class="col-lg-10 mx-auto">
                                 <h2 class="mt-3 text-warning">{{ __('Theme & Home') }}</h2>
                                 <hr>

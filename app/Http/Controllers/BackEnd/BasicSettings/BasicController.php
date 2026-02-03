@@ -13,6 +13,7 @@ use App\Rules\ImageMimeTypeRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Mews\Purifier\Facades\Purifier;
@@ -652,6 +653,7 @@ class BasicController extends Controller
       'website_title' => 'required',
       'theme_version' => 'required|numeric',
       'preloader_status' => 'required',
+      'ai_assistant_status' => 'nullable|in:0,1',
       'base_currency_symbol' => 'required',
       'base_currency_symbol_position' => 'required',
       'base_currency_text' => 'required',
@@ -694,16 +696,13 @@ class BasicController extends Controller
     }
 
 
-    //update or insert data to basic settigs table 
-    DB::table('basic_settings')->updateOrInsert(
-      ['uniqid' => 12345],
-      [
-        'website_title' => $request->website_title,
-        'logo' => $logoName,
-        'favicon' => $iconName,
-        'preloader' => $preloaderName,
-        'preloader_status' => $request->preloader_status,
-        'theme_version' => $request->theme_version,
+    $updateData = [
+      'website_title' => $request->website_title,
+      'logo' => $logoName,
+      'favicon' => $iconName,
+      'preloader' => $preloaderName,
+      'preloader_status' => $request->preloader_status,
+      'theme_version' => $request->theme_version,
         'primary_color' => $request->primary_color,
         'secondary_color' => $request->secondary_color ?? '255056',
         'base_currency_symbol' => $request->base_currency_symbol,
@@ -712,7 +711,13 @@ class BasicController extends Controller
         'base_currency_text_position' => $request->base_currency_text_position,
         'base_currency_rate' => $request->base_currency_rate,
         'timezone' => $request->timezone
-      ]
+    ];
+    if (Schema::hasColumn('basic_settings', 'ai_assistant_status')) {
+      $updateData['ai_assistant_status'] = $request->input('ai_assistant_status', 1);
+    }
+    DB::table('basic_settings')->updateOrInsert(
+      ['uniqid' => 12345],
+      $updateData
     );
     $array = [
       'APP_TIMEZONE' => $request->timezone,

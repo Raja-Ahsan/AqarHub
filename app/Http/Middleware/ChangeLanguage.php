@@ -18,19 +18,21 @@ class ChangeLanguage
    */
   public function handle(Request $request, Closure $next)
   {
+    $locale = null;
     if ($request->session()->has('currentLocaleCode')) {
       $locale = $request->session()->get('currentLocaleCode');
     }
 
     if (empty($locale)) {
-      // set the default language as system locale
-      $languageCode = Language::query()->where('is_default', '=', 1)
-        ->pluck('code')
-        ->first();
-
-      App::setLocale($languageCode);
+      try {
+        $languageCode = Language::query()->where('is_default', '=', 1)
+          ->pluck('code')
+          ->first();
+        App::setLocale($languageCode ?: config('app.fallback_locale', 'en'));
+      } catch (\Throwable $e) {
+        App::setLocale(config('app.fallback_locale', 'en'));
+      }
     } else {
-      // set the selected language as system locale
       App::setLocale($locale);
     }
 
