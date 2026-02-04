@@ -72,6 +72,9 @@
   toggle && toggle.addEventListener('click', togglePanel);
   closeBtn && closeBtn.addEventListener('click', hidePanel);
 
+  var bannerOpenBtn = document.getElementById('banner-open-ai-assistant');
+  if (bannerOpenBtn) bannerOpenBtn.addEventListener('click', function() { showPanel(); if (input) input.focus(); });
+
   function addBubble(text, role) {
     var div = document.createElement('div');
     div.className = 'ai-assistant-msg ' + role;

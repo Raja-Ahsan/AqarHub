@@ -93,9 +93,13 @@ class PropertyController extends Controller
         }
 
         $min = $max = null;
-        if ($request->filled('min') && $request->filled('max')) {
-            $min = intval($request->min);
-            $max = intval(($request->max));
+        if ($request->filled('min') || $request->filled('max')) {
+            if ($request->filled('min')) {
+                $min = intval($request->min);
+            }
+            if ($request->filled('max')) {
+                $max = intval($request->max);
+            }
         }
 
         $title = $location = $beds = $baths = $area = $countryId = $stateId = $cityId = null;
@@ -118,6 +122,29 @@ class PropertyController extends Controller
             $city = CityContent::where([['name', $request->city], ['language_id', $language->id]])->first();
             if ($city) {
                 $cityId = $city->city_id;
+                $cityRecord = City::find($cityId);
+                if ($cityRecord) {
+                    if ($stateId === null && $cityRecord->state_id) {
+                        $stateId = $cityRecord->state_id;
+                    }
+                    if ($countryId === null && $cityRecord->country_id) {
+                        $countryId = $cityRecord->country_id;
+                    }
+                    if (! $request->filled('state') && ! $request->filled('country') && ($stateId || $countryId)) {
+                        $stateName = $stateId ? (StateContent::where('state_id', $stateId)->where('language_id', $language->id)->value('name')) : null;
+                        $countryName = $countryId ? (CountryContent::where('country_id', $countryId)->where('language_id', $language->id)->value('name')) : null;
+                        if ($stateName || $countryName) {
+                            $query = $request->query();
+                            if ($stateName) {
+                                $query['state'] = $stateName;
+                            }
+                            if ($countryName) {
+                                $query['country'] = $countryName;
+                            }
+                            return redirect()->route('frontend.properties', $query);
+                        }
+                    }
+                }
             }
         }
         if ($request->filled('title') && $request->filled('title')) {
@@ -218,13 +245,17 @@ class PropertyController extends Controller
                 }
             })
 
-            ->when($min, function ($query) use ($min, $max, $price) {
+            ->when($min !== null || $max !== null, function ($query) use ($min, $max, $price) {
                 if ($price == 'fixed' || empty($price)) {
-                    return $query->where('properties.price', '>=', $min)
-                        ->where('properties.price', '<=', $max);
-                } else {
-                    return $query;
+                    if ($min !== null && $max !== null) {
+                        return $query->where('properties.price', '>=', $min)->where('properties.price', '<=', $max);
+                    }
+                    if ($min !== null) {
+                        return $query->where('properties.price', '>=', $min);
+                    }
+                    return $query->where('properties.price', '<=', $max);
                 }
+                return $query;
             })
             ->when($beds, function ($query) use ($beds) {
                 return $query->where('properties.beds', $beds);

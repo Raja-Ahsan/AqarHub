@@ -5,7 +5,14 @@ namespace App\Http\Controllers\FrontEnd;
 use App\Http\Controllers\Controller;
 use App\Http\Helpers\VendorPermissionHelper;
 use App\Models\AiChatMessage;
+use App\Models\Property\City;
+use App\Models\Property\CityContent;
+use App\Models\Property\Content as PropertyContent;
+use App\Models\Property\CountryContent;
+use App\Models\Property\Property;
+use App\Models\Property\StateContent;
 use App\Services\AiAssistantService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -61,42 +68,76 @@ class AiAssistantController extends Controller
 
         $replyMessage = $result['message'];
 
-        // 9.3: If user message looks like a property search, append search link to reply
-        if ($this->looksLikePropertySearch($message)) {
-            $searchResult = $this->aiService->parseSearchQuery($message);
+        $searchUrl = null;
+        $properties = [];
+
+        // If message looks like a property search (or a follow-up to a previous search): parse filters using chat history, fetch real properties, build search URL
+        if ($this->looksLikePropertySearch($message, $history)) {
+            $searchResult = $this->aiService->parseSearchQuery($message, $history);
             if ($searchResult['success'] && ! empty($searchResult['filters'])) {
+                $filters = $searchResult['filters'];
+                // Only add type/purpose when user explicitly asks (e.g. "for rent", "for sale", "commercial")
+                $useTypePurpose = $this->userExplicitlyAskedTypeOrPurpose($message);
+                if (! $useTypePurpose) {
+                    $filters['type'] = null;
+                    $filters['purpose'] = null;
+                }
                 $params = [];
-                if (! empty($searchResult['filters']['beds'])) {
-                    $params['beds'] = $searchResult['filters']['beds'];
+                if (! empty($filters['beds'])) {
+                    $params['beds'] = $filters['beds'];
                 }
-                if (! empty($searchResult['filters']['baths'])) {
-                    $params['baths'] = $searchResult['filters']['baths'];
+                if (! empty($filters['baths'])) {
+                    $params['baths'] = $filters['baths'];
                 }
-                if (! empty($searchResult['filters']['min_price'])) {
-                    $params['min'] = $searchResult['filters']['min_price'];
+                if (! empty($filters['min_price'])) {
+                    $params['min'] = $filters['min_price'];
                 }
-                if (! empty($searchResult['filters']['max_price'])) {
-                    $params['max'] = $searchResult['filters']['max_price'];
+                if (! empty($filters['max_price'])) {
+                    $params['max'] = $filters['max_price'];
                 }
-                if (! empty($searchResult['filters']['city'])) {
-                    $params['city'] = $searchResult['filters']['city'];
+                if (! empty($filters['city'])) {
+                    $params['city'] = $filters['city'];
+                    if (empty($filters['state']) && empty($filters['country'])) {
+                        $locationFromCity = $this->getStateAndCountryFromCity($filters['city']);
+                        if (! empty($locationFromCity['state'])) {
+                            $params['state'] = $locationFromCity['state'];
+                            $filters['state'] = $locationFromCity['state'];
+                        }
+                        if (! empty($locationFromCity['country'])) {
+                            $params['country'] = $locationFromCity['country'];
+                            $filters['country'] = $locationFromCity['country'];
+                        }
+                    }
                 }
-                if (! empty($searchResult['filters']['state'])) {
-                    $params['state'] = $searchResult['filters']['state'];
+                if (! empty($filters['state'])) {
+                    $params['state'] = $filters['state'];
                 }
-                if (! empty($searchResult['filters']['country'])) {
-                    $params['country'] = $searchResult['filters']['country'];
+                if (! empty($filters['country'])) {
+                    $params['country'] = $filters['country'];
                 }
-                if (! empty($searchResult['filters']['type']) && in_array($searchResult['filters']['type'], ['residential', 'commercial'])) {
-                    $params['type'] = $searchResult['filters']['type'];
+                if ($useTypePurpose && ! empty($filters['type']) && in_array($filters['type'], ['residential', 'commercial'])) {
+                    $params['type'] = $filters['type'];
                 }
-                if (! empty($searchResult['filters']['purpose']) && in_array($searchResult['filters']['purpose'], ['sale', 'rent'])) {
-                    $params['purpose'] = $searchResult['filters']['purpose'];
+                if ($useTypePurpose && ! empty($filters['purpose']) && in_array($filters['purpose'], ['sale', 'rent'])) {
+                    $params['purpose'] = $filters['purpose'];
                 }
                 $searchUrl = count($params) > 0
                     ? route('frontend.properties') . '?' . http_build_query($params)
                     : route('frontend.properties');
-                $replyMessage .= "\n\nYou can browse matching properties here: " . $searchUrl;
+
+                $properties = $this->fetchPropertiesByFilters($filters, 12);
+
+                // Replace generic AI reply with a clear message when we have real data or search link
+                $count = count($properties);
+                if ($count > 0) {
+                    $replyMessage = $count === 1
+                        ? __('I found 1 property matching your search. Browse it below or view all results.')
+                        : __('I found :count properties matching your search. Browse them below or view all results.', ['count' => $count]);
+                    $replyMessage .= ' ' . $searchUrl;
+                } else {
+                    $replyMessage = __('Use the link below to browse properties with your filters on the platform. You can refine your search there.');
+                    $replyMessage .= ' ' . $searchUrl;
+                }
             }
         }
 
@@ -125,26 +166,265 @@ class AiAssistantController extends Controller
             ]);
         }
 
-        return response()->json([
+        $payload = [
             'success' => true,
             'message' => $replyMessage,
-        ]);
+        ];
+        if ($searchUrl !== null) {
+            $payload['search_url'] = $searchUrl;
+        }
+        if (! empty($properties)) {
+            $payload['properties'] = $properties;
+        }
+
+        return response()->json($payload);
     }
 
     /**
-     * Heuristic: does the message look like a property search request?
+     * Get state and country names (for current language) from a city name. Used to auto-set state/country in search URL.
+     *
+     * @return array{ state?: string, country?: string }
      */
-    protected function looksLikePropertySearch(string $message): bool
+    protected function getStateAndCountryFromCity(string $cityName): array
     {
-        $lower = mb_strtolower($message);
-        $patterns = ['find', 'search', 'looking for', 'show me', 'properties with', 'bed', 'beds', 'bath', 'under', 'above', 'rent', 'sale', 'buy', 'budget', 'max price', 'min price', 'in the city', 'near', 'location'];
-        $hits = 0;
-        foreach ($patterns as $p) {
-            if (str_contains($lower, $p)) {
-                $hits++;
+        $misc = new MiscellaneousController;
+        $language = $misc->getLanguage();
+        if (! $language) {
+            return [];
+        }
+        $cityContent = CityContent::where('language_id', $language->id)
+            ->where('name', $cityName)->first();
+        if (! $cityContent) {
+            $cityContent = CityContent::where('language_id', $language->id)
+                ->where('name', 'LIKE', '%' . trim($cityName) . '%')->first();
+        }
+        if (! $cityContent) {
+            return [];
+        }
+        $cityRecord = City::find($cityContent->city_id);
+        if (! $cityRecord) {
+            return [];
+        }
+        $result = [];
+        if ($cityRecord->state_id) {
+            $stateContent = StateContent::where('state_id', $cityRecord->state_id)
+                ->where('language_id', $language->id)->first();
+            if ($stateContent && ! empty($stateContent->name)) {
+                $result['state'] = $stateContent->name;
             }
         }
-        return $hits >= 1 && strlen(trim($message)) >= 10;
+        if ($cityRecord->country_id) {
+            $countryContent = CountryContent::where('country_id', $cityRecord->country_id)
+                ->where('language_id', $language->id)->first();
+            if ($countryContent && ! empty($countryContent->name)) {
+                $result['country'] = $countryContent->name;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Fetch real properties from the application by parsed search filters.
+     * Returns array of { id, title, slug, price, address, image, url } for chat display.
+     *
+     * @param  array<string, mixed>  $filters  Keys: beds, baths, min_price, max_price, city, state, country, type, purpose
+     * @param  int  $limit
+     * @return array<int, array<string, mixed>>
+     */
+    protected function fetchPropertiesByFilters(array $filters, int $limit = 6): array
+    {
+        $misc = new MiscellaneousController;
+        $language = $misc->getLanguage();
+        if (! $language) {
+            return [];
+        }
+
+        $countryId = $stateId = $cityId = null;
+        if (! empty($filters['country'])) {
+            $c = CountryContent::where('language_id', $language->id)
+                ->where(function ($q) use ($filters) {
+                    $q->where('name', 'LIKE', '%' . $filters['country'] . '%');
+                })->first();
+            if ($c) {
+                $countryId = $c->country_id;
+            }
+        }
+        if (! empty($filters['state'])) {
+            $s = StateContent::where('language_id', $language->id)
+                ->where('name', 'LIKE', '%' . $filters['state'] . '%')->first();
+            if ($s) {
+                $stateId = $s->state_id;
+            }
+        }
+        if (! empty($filters['city'])) {
+            $cityName = trim((string) $filters['city']);
+            $city = CityContent::where('language_id', $language->id)
+                ->where('name', $cityName)->first();
+            if (! $city) {
+                $city = CityContent::where('language_id', $language->id)
+                    ->where('name', 'LIKE', '%' . $cityName . '%')->first();
+            }
+            if ($city) {
+                $cityId = $city->city_id;
+                $cityRecord = City::find($cityId);
+                if ($cityRecord) {
+                    if ($stateId === null && $cityRecord->state_id) {
+                        $stateId = $cityRecord->state_id;
+                    }
+                    if ($countryId === null && $cityRecord->country_id) {
+                        $countryId = $cityRecord->country_id;
+                    }
+                }
+            }
+        }
+
+        $locationLike = null;
+        if (! empty($filters['city']) && $cityId === null) {
+            $locationLike = trim((string) $filters['city']);
+        }
+        if (! empty($filters['state']) && $stateId === null && ! $locationLike) {
+            $locationLike = trim((string) $filters['state']);
+        }
+        if (! empty($filters['country']) && $countryId === null && ! $locationLike) {
+            $locationLike = trim((string) $filters['country']);
+        }
+
+        $min = isset($filters['min_price']) && $filters['min_price'] !== '' ? (int) $filters['min_price'] : null;
+        $max = isset($filters['max_price']) && $filters['max_price'] !== '' ? (int) $filters['max_price'] : null;
+        $beds = isset($filters['beds']) && $filters['beds'] !== '' ? (int) $filters['beds'] : null;
+        $baths = isset($filters['baths']) && $filters['baths'] !== '' ? (int) $filters['baths'] : null;
+        $type = ! empty($filters['type']) && in_array($filters['type'], ['residential', 'commercial']) ? $filters['type'] : null;
+        $purpose = ! empty($filters['purpose']) && in_array($filters['purpose'], ['sale', 'rent']) ? $filters['purpose'] : null;
+
+        $query = Property::where([['properties.status', 1], ['properties.approve_status', 1]])
+            ->join('property_contents', 'properties.id', 'property_contents.property_id')
+            ->where('property_contents.language_id', $language->id)
+            ->leftJoin('vendors', 'properties.vendor_id', '=', 'vendors.id')
+            ->leftJoin('memberships', function ($join) {
+                $join->on('properties.vendor_id', '=', 'memberships.vendor_id')
+                    ->where('memberships.status', 1)
+                    ->where('memberships.start_date', '<=', Carbon::now()->format('Y-m-d'))
+                    ->where('memberships.expire_date', '>=', Carbon::now()->format('Y-m-d'));
+            })
+            ->where(function ($q) {
+                $q->where('properties.vendor_id', 0)
+                    ->orWhere(function ($q) {
+                        $q->where('vendors.status', 1)->whereNotNull('memberships.id');
+                    });
+            })
+            ->when($type, fn ($q) => $q->where('properties.type', $type))
+            ->when($purpose, fn ($q) => $q->where('properties.purpose', $purpose))
+            ->when($countryId, fn ($q) => $q->where('properties.country_id', $countryId))
+            ->when($stateId, fn ($q) => $q->where('properties.state_id', $stateId))
+            ->when($cityId, fn ($q) => $q->where('properties.city_id', $cityId))
+            ->when($locationLike, fn ($q) => $q->where('property_contents.address', 'LIKE', '%' . $locationLike . '%'))
+            ->when($beds !== null, fn ($q) => $q->where('properties.beds', $beds))
+            ->when($baths !== null, fn ($q) => $q->where('properties.bath', $baths))
+            ->when($min !== null && $max !== null, fn ($q) => $q->whereBetween('properties.price', [$min, $max]))
+            ->when($min !== null && $max === null, fn ($q) => $q->where('properties.price', '>=', $min))
+            ->when($max !== null && $min === null, fn ($q) => $q->where('properties.price', '<=', $max))
+            ->select('properties.id', 'properties.price', 'properties.featured_image', 'property_contents.title', 'property_contents.slug', 'property_contents.address')
+            ->groupBy('properties.id', 'properties.price', 'properties.featured_image', 'property_contents.title', 'property_contents.slug', 'property_contents.address')
+            ->orderBy('properties.id', 'desc')
+            ->limit($limit);
+
+        $rows = $query->get();
+
+        // If no results with strict filters, try again with relaxed filters (location/price only) to show some listings
+        if ($rows->isEmpty() && ($cityId || $countryId || $stateId || $locationLike || $min !== null || $max !== null)) {
+            $fallback = Property::where([['properties.status', 1], ['properties.approve_status', 1]])
+                ->join('property_contents', 'properties.id', 'property_contents.property_id')
+                ->where('property_contents.language_id', $language->id)
+                ->leftJoin('vendors', 'properties.vendor_id', '=', 'vendors.id')
+                ->leftJoin('memberships', function ($join) {
+                    $join->on('properties.vendor_id', '=', 'memberships.vendor_id')
+                        ->where('memberships.status', 1)
+                        ->where('memberships.start_date', '<=', Carbon::now()->format('Y-m-d'))
+                        ->where('memberships.expire_date', '>=', Carbon::now()->format('Y-m-d'));
+                })
+                ->where(function ($q) {
+                    $q->where('properties.vendor_id', 0)
+                        ->orWhere(function ($q) {
+                            $q->where('vendors.status', 1)->whereNotNull('memberships.id');
+                        });
+                })
+                ->when($countryId, fn ($q) => $q->where('properties.country_id', $countryId))
+                ->when($stateId, fn ($q) => $q->where('properties.state_id', $stateId))
+                ->when($cityId, fn ($q) => $q->where('properties.city_id', $cityId))
+                ->when($locationLike, fn ($q) => $q->where('property_contents.address', 'LIKE', '%' . $locationLike . '%'))
+                ->when($max !== null && $min === null, fn ($q) => $q->where('properties.price', '<=', $max))
+                ->when($min !== null && $max === null, fn ($q) => $q->where('properties.price', '>=', $min))
+                ->when($min !== null && $max !== null, fn ($q) => $q->whereBetween('properties.price', [$min, $max]))
+                ->select('properties.id', 'properties.price', 'properties.featured_image', 'property_contents.title', 'property_contents.slug', 'property_contents.address')
+                ->orderBy('properties.id', 'desc')
+                ->limit($limit);
+            $rows = $fallback->get();
+        }
+
+        $baseUrl = rtrim(config('app.url'), '/');
+        $properties = [];
+        foreach ($rows as $row) {
+            $img = $row->featured_image ?? 'noimage.jpg';
+            $properties[] = [
+                'id' => $row->id,
+                'title' => $row->title ?? '',
+                'slug' => $row->slug ?? '',
+                'price' => $row->price,
+                'address' => $row->address ?? '',
+                'image' => asset('assets/img/property/featureds/' . $img),
+                'url' => route('frontend.property.details', ['slug' => $row->slug]),
+            ];
+        }
+
+        return $properties;
+    }
+
+    /**
+     * Whether the user explicitly asked for type (residential/commercial) or purpose (sale/rent).
+     * If not, we avoid adding type/purpose to the search URL and DB query to prevent over-filtering.
+     */
+    protected function userExplicitlyAskedTypeOrPurpose(string $message): bool
+    {
+        $lower = mb_strtolower($message);
+        $typePurposeWords = [
+            'residential', 'commercial', 'for sale', 'for rent', 'to buy', 'to rent',
+            'sale', 'rent', 'buy', 'rental', 'selling', 'renting',
+        ];
+        foreach ($typePurposeWords as $word) {
+            if (str_contains($lower, $word)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Heuristic: does the message look like a property search request or a follow-up to one?
+     * When history is not empty, also accepts short refinements like "cheaper ones", "3 bed", "in Madrid".
+     */
+    protected function looksLikePropertySearch(string $message, array $history = []): bool
+    {
+        $lower = mb_strtolower(trim($message));
+        $len = strlen($lower);
+        $patterns = ['find', 'search', 'looking for', 'show me', 'properties with', 'bed', 'beds', 'bath', 'under', 'above', 'rent', 'sale', 'buy', 'budget', 'max price', 'min price', 'in the city', 'near', 'location'];
+        $followUpPatterns = ['cheaper', 'lower', 'higher', 'more', 'less', 'same', 'instead', 'another', 'other', 'what about', 'how about', 'any', 'with pool', 'with garden', 'apartment', 'villa', 'studio'];
+        $minLength = empty($history) ? 10 : 3;
+        if ($len < $minLength) {
+            return false;
+        }
+        foreach ($patterns as $p) {
+            if (str_contains($lower, $p)) {
+                return true;
+            }
+        }
+        if (! empty($history)) {
+            foreach ($followUpPatterns as $p) {
+                if (str_contains($lower, $p)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

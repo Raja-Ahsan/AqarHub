@@ -105,11 +105,13 @@ class AiAssistantService
 
     /**
      * Parse natural language into property search filters.
+     * When conversationHistory is provided, uses it to resolve follow-ups (e.g. "cheaper ones", "same but 3 bed").
      * Returns array with keys: beds, baths, min_price, max_price, city, state, country, type, purpose.
      *
+     * @param  array<int, array{role: string, content: string}>  $conversationHistory  Optional. Previous user/assistant messages for context.
      * @return array{ success: bool, filters?: array, error?: string }
      */
-    public function parseSearchQuery(string $query): array
+    public function parseSearchQuery(string $query, array $conversationHistory = []): array
     {
         if (empty($this->apiKey)) {
             return ['success' => false, 'error' => 'AI is not configured.'];
@@ -120,17 +122,36 @@ class AiAssistantService
             return ['success' => false, 'error' => 'Query too long.'];
         }
 
-        $systemPrompt = 'You are a real estate search parser. Extract property search criteria from the user message. Reply with ONLY a JSON object (no markdown, no code block) with these keys when relevant: beds (number), baths (number), min_price (number), max_price (number), city (string), state (string), country (string), type (residential or commercial or empty), purpose (sale or rent or empty). Use empty string or omit keys when not mentioned. Example: {"beds":3,"max_price":500000,"city":"Dubai"}';
+        $systemPrompt = 'You are a real estate search parser. Extract property search criteria for the CURRENT user request. '
+            . 'Reply with ONLY a JSON object (no markdown, no code block) with these keys when relevant: beds (number), baths (number), min_price (number), max_price (number), city (string), state (string), country (string), type (residential or commercial or empty), purpose (sale or rent or empty). '
+            . 'Use empty string or omit keys when not mentioned or unknown. '
+            . 'If the user refers to a previous search (e.g. "cheaper ones", "lower budget", "same but 3 bedroom", "in Madrid instead", "what about 2 bed?"), use the conversation history to infer the previous criteria and apply the new change to output the complete filters for the current search. '
+            . 'Example: {"beds":2,"max_price":350000,"city":"Dubai"}';
+
+        $messages = [
+            ['role' => 'system', 'content' => $systemPrompt],
+        ];
+
+        $recentHistory = array_slice($conversationHistory, -8);
+        if (! empty($recentHistory)) {
+            foreach ($recentHistory as $msg) {
+                $role = $msg['role'] ?? 'user';
+                $content = $msg['content'] ?? '';
+                if (($role === 'user' || $role === 'assistant') && $content !== '') {
+                    $messages[] = ['role' => $role, 'content' => $this->sanitizeMessage((string) $content)];
+                }
+            }
+        }
+        if (empty($messages) || ($messages[count($messages) - 1]['role'] ?? '') !== 'user' || ($messages[count($messages) - 1]['content'] ?? '') !== $query) {
+            $messages[] = ['role' => 'user', 'content' => $query];
+        }
 
         try {
             $response = Http::withToken($this->apiKey)
                 ->timeout(15)
                 ->post('https://api.openai.com/v1/chat/completions', [
                     'model' => $this->model,
-                    'messages' => [
-                        ['role' => 'system', 'content' => $systemPrompt],
-                        ['role' => 'user', 'content' => $query],
-                    ],
+                    'messages' => $messages,
                     'max_tokens' => 200,
                     'temperature' => 0.3,
                 ]);

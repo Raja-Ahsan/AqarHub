@@ -1,4 +1,7 @@
 * text=auto
+# Normalize line endings for Blade/PHP so Git doesn't warn on add (use LF in repo)
+*.blade.php text eol=lf
+*.php text eol=lf
 *.css linguist-vendored
 *.scss linguist-vendored
 *.js linguist-vendored

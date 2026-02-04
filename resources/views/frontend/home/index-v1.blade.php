@@ -29,6 +29,10 @@
                         <p class="text">
                             {{ $heroStatic->text }}
                         </p>
+                        <div class="banner-ai-cta d-flex flex-wrap gap-2 mt-3">
+                            <a href="{{ route('frontend.properties') }}" class="btn btn-dark px-4 py-2">{{ __('Start Searching') }}</a>
+                            <button type="button" class="btn btn-outline-dark px-4 py-2" id="banner-open-ai-assistant" aria-label="{{ __('Ask Assistant') }}">{{ __('Ask Assistant') }} &rarr;</button>
+                        </div>
                     </div>
                     <div class="banner-filter-form" data-aos="fade-up">
                         <ul class="nav nav-tabs">
