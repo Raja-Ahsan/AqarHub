@@ -125,8 +125,9 @@ class AiAssistantService
         $systemPrompt = 'You are a real estate search parser. Extract property search criteria for the CURRENT user request. '
             . 'Reply with ONLY a JSON object (no markdown, no code block) with these keys when relevant: beds (number), baths (number), min_price (number), max_price (number), city (string), state (string), country (string), type (residential or commercial or empty), purpose (sale or rent or empty). '
             . 'Use empty string or omit keys when not mentioned or unknown. '
-            . 'If the user refers to a previous search (e.g. "cheaper ones", "lower budget", "same but 3 bedroom", "in Madrid instead", "what about 2 bed?"), use the conversation history to infer the previous criteria and apply the new change to output the complete filters for the current search. '
-            . 'Example: {"beds":2,"max_price":350000,"city":"Dubai"}';
+            . 'For SHORT queries like "Dubai property", "property in Dubai", "Dubai", "flats in Madrid", always extract any location (city, state or country) mentioned and include it in the JSON. Even a single city or country name should be returned (e.g. {"city":"Dubai"} or {"country":"UAE"}). '
+            . 'If the user refers to a previous search (e.g. "cheaper ones", "lower budget", "same but 3 bedroom", "in Madrid instead"), use the conversation history to infer the previous criteria and apply the new change. '
+            . 'Example: {"beds":2,"max_price":350000,"city":"Dubai"}. For "Dubai property" return {"city":"Dubai"}.';
 
         $messages = [
             ['role' => 'system', 'content' => $systemPrompt],

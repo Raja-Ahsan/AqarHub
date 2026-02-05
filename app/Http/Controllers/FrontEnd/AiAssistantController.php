@@ -5,12 +5,16 @@ namespace App\Http\Controllers\FrontEnd;
 use App\Http\Controllers\Controller;
 use App\Http\Helpers\VendorPermissionHelper;
 use App\Models\AiChatMessage;
+use App\Models\Agent;
+use App\Models\AgentInfo;
 use App\Models\Property\City;
 use App\Models\Property\CityContent;
 use App\Models\Property\Content as PropertyContent;
 use App\Models\Property\CountryContent;
 use App\Models\Property\Property;
 use App\Models\Property\StateContent;
+use App\Models\Vendor;
+use App\Models\VendorInfo;
 use App\Services\AiAssistantService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -181,6 +185,90 @@ class AiAssistantController extends Controller
     }
 
     /**
+     * Get full property details plus vendor/agent contact for display in chat (e.g. when user asks "show details" or "interested in this property").
+     */
+    public function propertyDetails(Request $request): JsonResponse
+    {
+        $id = $request->input('id');
+        $slug = $request->input('slug');
+        if (! $id && ! $slug) {
+            return response()->json(['success' => false, 'error' => 'Property id or slug required.'], 422);
+        }
+
+        $misc = new MiscellaneousController;
+        $language = $misc->getLanguage();
+        if (! $language) {
+            return response()->json(['success' => false, 'error' => 'Language not set.'], 400);
+        }
+
+        if ($id) {
+            $property = Property::where([['properties.status', 1], ['properties.approve_status', 1]])
+                ->where('properties.id', (int) $id)->first();
+        } else {
+            $contentRow = PropertyContent::where('language_id', $language->id)->where('slug', $slug)->first();
+            if (! $contentRow) {
+                return response()->json(['success' => false, 'error' => 'Property not found.'], 404);
+            }
+            $property = Property::where([['properties.status', 1], ['properties.approve_status', 1]])
+                ->where('properties.id', $contentRow->property_id)->first();
+        }
+
+        if (! $property) {
+            return response()->json(['success' => false, 'error' => 'Property not found.'], 404);
+        }
+
+        $content = $property->getContent($language->id) ?? $property->propertyContents->first();
+        if (! $content) {
+            return response()->json(['success' => false, 'error' => 'Property content not found.'], 404);
+        }
+
+        $img = $property->featured_image ?? 'noimage.jpg';
+        $description = isset($content->description) ? trim(strip_tags($content->description)) : '';
+
+        $agent = $property->agent_id ? Agent::with(['agent_info' => fn ($q) => $q->where('language_id', $language->id)])->find($property->agent_id) : null;
+        $vendor = $property->vendor_id ? Vendor::with(['vendor_info' => fn ($q) => $q->where('language_id', $language->id)])->find($property->vendor_id) : null;
+
+        $contact = null;
+        if ($agent && $agent->agent_info) {
+            $name = trim(($agent->agent_info->first_name ?? '') . ' ' . ($agent->agent_info->last_name ?? ''));
+            $contact = [
+                'name' => $name ?: $agent->username,
+                'role' => 'Agent',
+                'phone' => $agent->phone ?? '',
+                'email' => $agent->email ?? '',
+                'company' => $agent->vendor?->vendor_info?->name ?? '',
+            ];
+        } elseif ($vendor && $vendor->vendor_info) {
+            $contact = [
+                'name' => $vendor->vendor_info->name ?? $vendor->username,
+                'role' => 'Vendor',
+                'phone' => $vendor->phone ?? '',
+                'email' => $vendor->email ?? '',
+                'company' => $vendor->vendor_info->name ?? '',
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'property' => [
+                'id' => $property->id,
+                'title' => $content->title ?? '',
+                'slug' => $content->slug ?? '',
+                'price' => $property->price,
+                'address' => $content->address ?? '',
+                'description' => $description,
+                'beds' => $property->beds,
+                'baths' => $property->bath,
+                'image' => asset('assets/img/property/featureds/' . $img),
+                'url' => route('frontend.property.details', ['slug' => $content->slug]),
+                'vendor_id' => $property->vendor_id ?? 0,
+                'agent_id' => $property->agent_id ?? null,
+            ],
+            'contact' => $contact,
+        ]);
+    }
+
+    /**
      * Get state and country names (for current language) from a city name. Used to auto-set state/country in search URL.
      *
      * @return array{ state?: string, country?: string }
@@ -323,8 +411,8 @@ class AiAssistantController extends Controller
             ->when($min !== null && $max !== null, fn ($q) => $q->whereBetween('properties.price', [$min, $max]))
             ->when($min !== null && $max === null, fn ($q) => $q->where('properties.price', '>=', $min))
             ->when($max !== null && $min === null, fn ($q) => $q->where('properties.price', '<=', $max))
-            ->select('properties.id', 'properties.price', 'properties.featured_image', 'property_contents.title', 'property_contents.slug', 'property_contents.address')
-            ->groupBy('properties.id', 'properties.price', 'properties.featured_image', 'property_contents.title', 'property_contents.slug', 'property_contents.address')
+            ->select('properties.id', 'properties.price', 'properties.featured_image', 'properties.vendor_id', 'properties.agent_id', 'property_contents.title', 'property_contents.slug', 'property_contents.address', 'property_contents.description')
+            ->groupBy('properties.id', 'properties.price', 'properties.featured_image', 'properties.vendor_id', 'properties.agent_id', 'property_contents.title', 'property_contents.slug', 'property_contents.address', 'property_contents.description')
             ->orderBy('properties.id', 'desc')
             ->limit($limit);
 
@@ -355,7 +443,7 @@ class AiAssistantController extends Controller
                 ->when($max !== null && $min === null, fn ($q) => $q->where('properties.price', '<=', $max))
                 ->when($min !== null && $max === null, fn ($q) => $q->where('properties.price', '>=', $min))
                 ->when($min !== null && $max !== null, fn ($q) => $q->whereBetween('properties.price', [$min, $max]))
-                ->select('properties.id', 'properties.price', 'properties.featured_image', 'property_contents.title', 'property_contents.slug', 'property_contents.address')
+                ->select('properties.id', 'properties.price', 'properties.featured_image', 'properties.vendor_id', 'properties.agent_id', 'property_contents.title', 'property_contents.slug', 'property_contents.address', 'property_contents.description')
                 ->orderBy('properties.id', 'desc')
                 ->limit($limit);
             $rows = $fallback->get();
@@ -365,12 +453,19 @@ class AiAssistantController extends Controller
         $properties = [];
         foreach ($rows as $row) {
             $img = $row->featured_image ?? 'noimage.jpg';
+            $desc = isset($row->description) ? trim(strip_tags($row->description)) : '';
+            if (mb_strlen($desc) > 120) {
+                $desc = mb_substr($desc, 0, 117) . '...';
+            }
             $properties[] = [
                 'id' => $row->id,
                 'title' => $row->title ?? '',
                 'slug' => $row->slug ?? '',
                 'price' => $row->price,
                 'address' => $row->address ?? '',
+                'description' => $desc,
+                'vendor_id' => $row->vendor_id ?? 0,
+                'agent_id' => $row->agent_id ?? null,
                 'image' => asset('assets/img/property/featureds/' . $img),
                 'url' => route('frontend.property.details', ['slug' => $row->slug]),
             ];
@@ -399,16 +494,23 @@ class AiAssistantController extends Controller
     }
 
     /**
-     * Heuristic: does the message look like a property search request or a follow-up to one?
-     * When history is not empty, also accepts short refinements like "cheaper ones", "3 bed", "in Madrid".
+     * Heuristic: does the message look like a property/search request so we should query the database?
+     * Triggers for: "Dubai property", "property in X", "agents", "vendors", "projects", etc.
+     * When history is not empty, also accepts short refinements like "cheaper ones", "3 bed".
      */
     protected function looksLikePropertySearch(string $message, array $history = []): bool
     {
         $lower = mb_strtolower(trim($message));
         $len = strlen($lower);
-        $patterns = ['find', 'search', 'looking for', 'show me', 'properties with', 'bed', 'beds', 'bath', 'under', 'above', 'rent', 'sale', 'buy', 'budget', 'max price', 'min price', 'in the city', 'near', 'location'];
-        $followUpPatterns = ['cheaper', 'lower', 'higher', 'more', 'less', 'same', 'instead', 'another', 'other', 'what about', 'how about', 'any', 'with pool', 'with garden', 'apartment', 'villa', 'studio'];
-        $minLength = empty($history) ? 10 : 3;
+        $patterns = [
+            'find', 'search', 'looking for', 'show me', 'properties with', 'bed', 'beds', 'bath',
+            'under', 'above', 'rent', 'sale', 'buy', 'budget', 'max price', 'min price',
+            'in the city', 'near', 'location',
+            'property', 'properties', 'project', 'projects', 'listing', 'listings',
+            'agent', 'agents', 'vendor', 'vendors', 'apartment', 'villa', 'house', 'houses',
+        ];
+        $followUpPatterns = ['cheaper', 'lower', 'higher', 'more', 'less', 'same', 'instead', 'another', 'other', 'what about', 'how about', 'any', 'with pool', 'with garden', 'studio'];
+        $minLength = empty($history) ? 5 : 3;
         if ($len < $minLength) {
             return false;
         }

@@ -478,6 +478,75 @@ class PropertyController extends Controller
 
         return back()->with('success', 'Message sent successfully');
     }
+
+    /**
+     * Submit property inquiry from AI chat (or other API client). Same logic as contact() but returns JSON.
+     * Recaptcha is not required for this endpoint to allow chat-based submission.
+     */
+    public function contactApi(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|email:rfc,dns',
+            'phone' => 'required|string|max:50',
+            'message' => 'required|string|max:2000',
+            'property_id' => 'required|integer|exists:properties,id',
+            'vendor_id' => 'nullable|integer',
+            'agent_id' => 'nullable|integer',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'error' => $validator->errors()->first()], 422);
+        }
+
+        $vendorId = (int) $request->vendor_id;
+        $agentId = $request->agent_id ? (int) $request->agent_id : null;
+
+        if ($vendorId !== 0) {
+            $vendor = Vendor::find($vendorId);
+            if (! $vendor) {
+                return response()->json(['success' => false, 'error' => 'Vendor not found.'], 404);
+            }
+            $request['to_mail'] = $vendor->email;
+            if ($agentId) {
+                $agent = Agent::find($agentId);
+                if (! $agent) {
+                    return response()->json(['success' => false, 'error' => 'Agent not found.'], 404);
+                }
+                $request['to_mail'] = $agent->email;
+            }
+        } elseif ($agentId) {
+            $agent = Agent::find($agentId);
+            if (! $agent) {
+                return response()->json(['success' => false, 'error' => 'Agent not found.'], 404);
+            }
+            $request['to_mail'] = $agent->email;
+        } else {
+            $admin = Admin::where('role_id', null)->first();
+            $request['to_mail'] = $admin->email ?? config('mail.from.address');
+        }
+
+        try {
+            PropertyContact::create([
+                'vendor_id' => $vendorId,
+                'agent_id' => $agentId,
+                'property_id' => $request->property_id,
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'message' => $request->message,
+            ]);
+            $this->sendMail($request);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'error' => __('Something went wrong!')], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => __('Message sent successfully'),
+            'confirmation' => __('Your real estate request has been sent successfully.'),
+        ]);
+    }
+
     public function contactUser(Request $request)
     {
 

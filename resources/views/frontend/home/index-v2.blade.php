@@ -38,8 +38,8 @@
                 </div>
             </div>
             <div class="banner-ai-cta d-flex flex-wrap gap-2 justify-content-center mt-4 mb-3" style="opacity: 1; visibility: visible;">
-                <button type="button" class="btn btn-dark px-4 py-2" id="banner-show-search-form" style="z-index:2;">{{ __('Start Searching') }}</button>
-                <button type="button" class="btn btn-outline-light px-4 py-2" id="banner-open-ai-inline" style="z-index:2;" aria-label="{{ __('Ask Assistant') }}">{{ __('Ask Assistant') }} &rarr;</button>
+                <button type="button" class="btn btn-dark px-4 py-2" id="banner-show-search-form" style="z-index:2; background-color: #424649;">{{ __('Start Searching') }}</button>
+                <button type="button" class="btn btn-outline-light px-4 py-2" id="banner-open-ai-inline" style="z-index:2; background-color: #BDA588;" aria-label="{{ __('Ask Assistant') }}">{{ __('Ask Assistant') }} &rarr;</button>
             </div>
             <div class="banner-filter-form mt-40 d-none" id="banner-filter-form-wrap" data-aos="fade-up">
                 <div class="row justify-content-center">
@@ -1223,7 +1223,7 @@
     .banner-ai-inline-wrap .ai-property-assistant-card { max-height: 85vh; overflow-y: auto; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     @media (max-width: 767px) { .banner-ai-inline-wrap .ai-property-assistant-card { max-height: 80vh; } }
     .ai-property-assistant-card { background: linear-gradient(135deg, #1e3a5f 0%, #0d2137 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
-    .ai-assistant-card-header { padding: 24px 70px 16px; text-align: center; position: relative; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; }
+    .ai-assistant-card-header { padding: 65px 70px 16px; text-align: center; position: relative; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; }
     .ai-assistant-card-header-text { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; width: 100%; }
     .ai-assistant-location-btn { position: absolute; top: 16px; left: 16px; height: 40px; padding: 0 14px; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.1); color: #fff; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; transition: background .2s, border-color .2s; }
     .ai-assistant-location-btn:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.5); }
@@ -1248,10 +1248,11 @@
     @keyframes ai-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
     .ai-assistant-card-chat { padding: 16px 24px 24px; }
     .ai-assistant-inline-messages { max-height: 320px; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px; padding-right: 6px; }
-    .ai-assistant-inline-messages .ai-assistant-msg { max-width: 92%; padding: 12px 16px; border-radius: 14px; font-size: 14px; line-height: 1.55; word-wrap: break-word; white-space: pre-wrap; overflow-wrap: break-word; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+    .ai-assistant-inline-messages .ai-assistant-msg { max-width: 100%; padding: 12px 16px; border-radius: 14px; font-size: 14px; line-height: 1.55; word-wrap: break-word; white-space: pre-wrap; overflow-wrap: break-word; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
     .ai-assistant-inline-messages .ai-assistant-msg.assistant { align-self: flex-start; background: rgba(59, 130, 246, 0.22); color: #e0e7ff; border: 1px solid rgba(59, 130, 246, 0.35); }
     .ai-assistant-inline-messages .ai-assistant-msg.user { align-self: flex-end; background: rgba(30, 58, 95, 0.95); color: #fff; border: 1px solid rgba(255,255,255,.12); }
     .ai-assistant-inline-messages .ai-assistant-msg.error { align-self: flex-start; background: rgba(239, 68, 68, 0.22); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .ai-assistant-inline-messages .ai-assistant-msg.success { align-self: flex-start; background: rgba(34, 197, 94, 0.22); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.4); }
     .ai-assistant-inline-messages .ai-assistant-msg .ai-msg-label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; opacity: .9; }
     .ai-assistant-inline-messages .ai-assistant-msg .ai-msg-body { display: block; }
     .ai-assistant-inline-messages .ai-inline-typing { font-style: italic; opacity: .85; }
@@ -1272,13 +1273,23 @@
     .ai-assistant-cta-link { color: var(--color-primary, #BDA588); font-weight: 600; text-decoration: underline; }
     .ai-assistant-cta-link:hover { color: var(--color-primary, #BDA588); opacity: .9; }
     .ai-chat-property-results { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-self: flex-start; max-width: 92%; }
-    .ai-chat-property-card { width: calc(50% - 5px); min-width: 140px; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.15); border-radius: 10px; overflow: hidden; }
+    .ai-chat-property-card { width: calc(33% - 5px); min-width: 140px; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.15); border-radius: 10px; overflow: hidden; }
     .ai-chat-property-card a { color: inherit; text-decoration: none; display: block; }
     .ai-chat-property-card-img { width: 100%; height: 90px; object-fit: cover; background: rgba(0,0,0,.3); }
     .ai-chat-property-card-body { padding: 8px 10px; }
     .ai-chat-property-card-title { font-size: 12px; font-weight: 600; color: #e0e7ff; margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ai-chat-property-card-price { font-size: 13px; font-weight: 700; color: var(--color-primary, #BDA588); margin: 0 0 6px; }
     .ai-chat-property-card-link { font-size: 11px; color: rgba(255,255,255,.8); text-decoration: underline; }
+    .ai-chat-property-card-desc { font-size: 11px; color: rgba(255,255,255,.7); margin: 4px 0 6px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .ai-chat-property-card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px; }
+    .ai-chat-property-card-actions .btn-contact { font-size: 11px; padding: 4px 10px; background: rgba(189,165,136,.3); color: var(--color-primary, #BDA588); border: 1px solid rgba(189,165,136,.5); border-radius: 6px; cursor: pointer; }
+    .ai-chat-property-inquiry-form { margin-top: 10px; padding: 12px; background: rgba(0,0,0,.2); border-radius: 8px; border: 1px solid rgba(255,255,255,.1); }
+    .ai-chat-property-inquiry-form input, .ai-chat-property-inquiry-form textarea { width: 100%; padding: 6px 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.08); color: #fff; font-size: 13px; }
+    .ai-chat-property-inquiry-form textarea { min-height: 60px; resize: vertical; }
+    .ai-chat-property-inquiry-form button[type="submit"] { padding: 8px 14px; background: var(--color-primary, #BDA588); color: #1e3a5f; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; min-width: 140px; }
+    .ai-chat-property-inquiry-form button[type="submit"]:disabled { cursor: not-allowed; opacity: 0.9; }
+    .ai-inquiry-btn-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(30,58,95,.25); border-top-color: #1e3a5f; border-radius: 50%; animation: ai-inquiry-spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes ai-inquiry-spin { to { transform: rotate(360deg); } }
     .ai-chat-property-view-all { margin-top: 8px; padding: 8px 12px; background: rgba(255,255,255,.1); border-radius: 8px; text-align: center; }
     .ai-chat-property-view-all a { color: var(--color-primary, #BDA588); font-weight: 600; font-size: 13px; }
     @media (max-width: 480px) { .ai-chat-property-card { width: 100%; } }
@@ -1363,6 +1374,38 @@
             inlineMessagesEl.appendChild(div);
             inlineMessagesEl.scrollTop = inlineMessagesEl.scrollHeight;
         }
+        var inquiryUrl = '{{ route("ai.assistant.inquiry") }}';
+        var propertyDetailsUrl = '{{ route("ai.assistant.property_details") }}';
+        function fetchAndShowPropertyDetails(propertyId, cardEl) {
+            fetch(propertyDetailsUrl + '?id=' + encodeURIComponent(propertyId), {
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf }
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (!data.success || !data.property) {
+                    addInlineBubble('{{ __("Something went wrong!") }}', 'error');
+                    return;
+                }
+                var prop = data.property;
+                var contact = data.contact || null;
+                var html = '<div class="ai-property-detail-inline">';
+                html += '<p><strong>' + (prop.title || '') + '</strong></p>';
+                html += '<p>' + (prop.price ? (prop.price + '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '{{ __("Negotiable") }}') + '</p>';
+                if (prop.address) html += '<p>' + prop.address + '</p>';
+                if (prop.description) html += '<p style="font-size:12px;opacity:.9;margin-top:6px;">' + prop.description.substring(0, 300) + (prop.description.length > 300 ? '...' : '') + '</p>';
+                if (contact) {
+                    html += '<p style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.2);"><strong>' + (contact.name || '') + '</strong> (' + (contact.role || '') + ')';
+                    if (contact.company) html += ' &ndash; ' + contact.company;
+                    html += '</p>';
+                    if (contact.phone) html += '<p><a href="tel:' + contact.phone + '" style="color:inherit;">' + contact.phone + '</a></p>';
+                    if (contact.email) html += '<p><a href="mailto:' + contact.email + '" style="color:inherit;">' + contact.email + '</a></p>';
+                }
+                html += '<p style="margin-top:8px;"><a href="' + (prop.url || '#') + '" target="_blank" rel="noopener" style="color:var(--color-primary,#BDA588);font-weight:600;">{{ __("View full listing") }}</a></p></div>';
+                var wrap = document.createElement('div');
+                wrap.className = 'ai-assistant-msg assistant';
+                wrap.innerHTML = '<span class="ai-msg-label">{{ __("Assistant") }}</span><span class="ai-msg-body">' + html + '</span>';
+                inlineMessagesEl.appendChild(wrap);
+                inlineMessagesEl.scrollTop = inlineMessagesEl.scrollHeight;
+            }).catch(function() { addInlineBubble('{{ __("Unable to connect. Please try again.") }}', 'error'); });
+        }
         function addInlinePropertyCards(properties, searchUrl) {
             if (!inlineMessagesEl) return;
             var list = properties && properties.length ? properties : [];
@@ -1394,12 +1437,89 @@
                 link.textContent = '{{ __("View details") }}';
                 body.appendChild(title);
                 body.appendChild(price);
+                if (p.description) {
+                    var descEl = document.createElement('p');
+                    descEl.className = 'ai-chat-property-card-desc';
+                    descEl.textContent = p.description;
+                    body.appendChild(descEl);
+                }
                 body.appendChild(link);
                 a.appendChild(img);
                 a.appendChild(body);
                 card.appendChild(a);
+                var actions = document.createElement('div');
+                actions.className = 'ai-chat-property-card-actions';
+                var contactBtn = document.createElement('button');
+                contactBtn.type = 'button';
+                contactBtn.className = 'btn-contact';
+                contactBtn.textContent = '{{ __("Contact / Request callback") }}';
+                contactBtn.onclick = function(e) { e.preventDefault(); toggleInquiryForm(card, p); };
+                var detailsBtn = document.createElement('button');
+                detailsBtn.type = 'button';
+                detailsBtn.className = 'btn-contact';
+                detailsBtn.textContent = {!! json_encode(__("Details & Contact")) !!};
+                detailsBtn.onclick = function(e) { e.preventDefault(); fetchAndShowPropertyDetails(p.id, card); };
+                actions.appendChild(detailsBtn);
+                actions.appendChild(contactBtn);
+                card.appendChild(actions);
+                var formWrap = document.createElement('div');
+                formWrap.className = 'ai-chat-property-inquiry-form';
+                formWrap.style.display = 'none';
+                formWrap.innerHTML = '<input type="text" name="name" placeholder="{{ __("Name") }} *" required>' +
+                    '<input type="email" name="email" placeholder="{{ __("Email Address") }} *" required>' +
+                    '<input type="text" name="phone" placeholder="{{ __("Phone Number") }} *" required>' +
+                    '<textarea name="message" placeholder="{{ __("Message") }}..." rows="2"></textarea>' +
+                    '<button type="submit">{{ __("Send message") }}</button>';
+                formWrap.querySelector('button[type="submit"]').onclick = function() { submitInquiry(formWrap, p, card); };
+                card.appendChild(formWrap);
                 wrap.appendChild(card);
             });
+            function toggleInquiryForm(cardEl, prop) {
+                var form = cardEl.querySelector('.ai-chat-property-inquiry-form');
+                if (!form) return;
+                form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            }
+            function submitInquiry(formWrap, prop, cardEl) {
+                var name = (formWrap.querySelector('[name="name"]') || {}).value;
+                var email = (formWrap.querySelector('[name="email"]') || {}).value;
+                var phone = (formWrap.querySelector('[name="phone"]') || {}).value;
+                var message = (formWrap.querySelector('[name="message"]') || {}).value;
+                if (!name || !email || !phone || !message) return;
+                var btn = formWrap.querySelector('button[type="submit"]');
+                var originalBtnText = btn ? btn.textContent : '';
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="ai-inquiry-btn-spinner"></span> ' + '{{ __("Sending...") }}';
+                }
+                fetch(inquiryUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        property_id: prop.id,
+                        vendor_id: prop.vendor_id != null ? prop.vendor_id : 0,
+                        agent_id: prop.agent_id || null,
+                        name: name,
+                        email: email,
+                        phone: phone,
+                        message: message
+                    })
+                }).then(function(r) { return r.json(); }).then(function(data) {
+                    if (data.success) {
+                        formWrap.style.display = 'none';
+                        addInlineBubble(data.confirmation || data.message || '{{ __("Your real estate request has been sent successfully.") }}', 'success');
+                        inlineHistory.push({ role: 'assistant', content: data.confirmation || data.message });
+                    } else {
+                        addInlineBubble(data.error || '{{ __("Something went wrong!") }}', 'error');
+                    }
+                }).catch(function() {
+                    addInlineBubble('{{ __("Unable to connect. Please try again.") }}', 'error');
+                }).finally(function() {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = originalBtnText;
+                    }
+                });
+            }
             if (searchUrl) {
                 var viewAll = document.createElement('div');
                 viewAll.className = 'ai-chat-property-view-all';
@@ -1408,8 +1528,8 @@
                 viewAllA.target = '_blank';
                 viewAllA.rel = 'noopener';
                 viewAllA.textContent = '{{ __("View all matching properties") }}';
-                viewAll.appendChild(viewAllA);
-                wrap.appendChild(viewAll);
+                //viewAll.appendChild(viewAllA);
+                //wrap.appendChild(viewAll);
             }
             inlineMessagesEl.appendChild(wrap);
             inlineMessagesEl.scrollTop = inlineMessagesEl.scrollHeight;
