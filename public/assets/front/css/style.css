@@ -4925,7 +4925,7 @@ p.cookie-consent__message * {
 .popup-four .popup_main-content .left-bg {
     width: 45%;
     height: 100%;
-    min-height: 670px;
+    min-height: 500px;
 }
 
 .popup-four .popup_main-content .right-content {

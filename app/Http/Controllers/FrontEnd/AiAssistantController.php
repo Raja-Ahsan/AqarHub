@@ -137,10 +137,8 @@ class AiAssistantController extends Controller
                     $replyMessage = $count === 1
                         ? __('I found 1 property matching your search. Browse it below or view all results.')
                         : __('I found :count properties matching your search. Browse them below or view all results.', ['count' => $count]);
-                    $replyMessage .= ' ' . $searchUrl;
                 } else {
                     $replyMessage = __('Use the link below to browse properties with your filters on the platform. You can refine your search there.');
-                    $replyMessage .= ' ' . $searchUrl;
                 }
             }
         }
@@ -222,7 +220,10 @@ class AiAssistantController extends Controller
             return response()->json(['success' => false, 'error' => 'Property content not found.'], 404);
         }
 
-        $img = $property->featured_image ?? 'noimage.jpg';
+        $imgPath = trim((string) ($property->featured_image ?? ''));
+        $imageUrl = $imgPath !== ''
+            ? asset('assets/img/property/featureds/' . $imgPath)
+            : asset('assets/front/images/placeholder.png');
         $description = isset($content->description) ? trim(strip_tags($content->description)) : '';
 
         $agent = $property->agent_id ? Agent::with(['agent_info' => fn ($q) => $q->where('language_id', $language->id)])->find($property->agent_id) : null;
@@ -259,7 +260,7 @@ class AiAssistantController extends Controller
                 'description' => $description,
                 'beds' => $property->beds,
                 'baths' => $property->bath,
-                'image' => asset('assets/img/property/featureds/' . $img),
+                'image' => $imageUrl,
                 'url' => route('frontend.property.details', ['slug' => $content->slug]),
                 'vendor_id' => $property->vendor_id ?? 0,
                 'agent_id' => $property->agent_id ?? null,
@@ -451,12 +452,16 @@ class AiAssistantController extends Controller
 
         $baseUrl = rtrim(config('app.url'), '/');
         $properties = [];
+        $placeholderImage = asset('assets/front/images/placeholder.png');
         foreach ($rows as $row) {
-            $img = $row->featured_image ?? 'noimage.jpg';
             $desc = isset($row->description) ? trim(strip_tags($row->description)) : '';
             if (mb_strlen($desc) > 120) {
                 $desc = mb_substr($desc, 0, 117) . '...';
             }
+            $imgPath = trim((string) ($row->featured_image ?? ''));
+            $imageUrl = $imgPath !== ''
+                ? asset('assets/img/property/featureds/' . $imgPath)
+                : $placeholderImage;
             $properties[] = [
                 'id' => $row->id,
                 'title' => $row->title ?? '',
@@ -466,7 +471,7 @@ class AiAssistantController extends Controller
                 'description' => $desc,
                 'vendor_id' => $row->vendor_id ?? 0,
                 'agent_id' => $row->agent_id ?? null,
-                'image' => asset('assets/img/property/featureds/' . $img),
+                'image' => $imageUrl,
                 'url' => route('frontend.property.details', ['slug' => $row->slug]),
             ];
         }

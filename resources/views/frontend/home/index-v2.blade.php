@@ -243,6 +243,10 @@
                                     <p class="ai-assistant-card-subtitle">{{ __('Powered by Logic Works AE') }}</p>
                                     <span class="ai-assistant-online"><span class="ai-online-dot"></span> {{ __('Online') }}</span>
                                 </div>
+                                <button type="button" class="ai-assistant-theme-toggle" id="ai-assistant-theme-toggle" title="{{ __('Light mode') }}" aria-label="{{ __('Toggle dark/light mode') }}">
+                                    <span class="ai-theme-icon-dark d-none" aria-hidden="true">🌙</span>
+                                    <span class="ai-theme-icon-light" aria-hidden="true">☀️</span>
+                                </button>
                                 <button type="button" class="ai-assistant-fullscreen-toggle" id="ai-assistant-fullscreen-toggle" title="{{ __('View in full screen') }}" aria-label="{{ __('View in full screen') }}">
                                     <span class="ai-fullscreen-icon-expand" aria-hidden="true">⛶</span>
                                     <span class="ai-fullscreen-icon-collapse d-none" aria-hidden="true">✕</span>
@@ -264,7 +268,7 @@
                                     <p class="ai-examples-label">{{ __('Try asking:') }}</p>
                                     <div class="ai-examples-chips">
                                         <button type="button" class="ai-example-chip" data-query="{{ __('Find 2-bedroom apartments under $400,000 in Dubai') }}">{{ __('Find 2-bedroom apartments under $400,000 in Dubai') }}</button>
-                                        <button type="button" class="ai-example-chip" data-query="{{ __("What's the average price per square meter in Krakow?") }}">{{ __("What's the average price per square meter in Krakow?") }}</button>
+                                        <button type="button" class="ai-example-chip" data-query="{{ __("What's the average price per square meter in Dubai?") }}">{{ __("What's the average price per square meter in Dubai?") }}</button>
                                         <button type="button" class="ai-example-chip" data-query="{{ __('Compare properties in Warsaw city center') }}">{{ __('Compare properties in Warsaw city center') }}</button>
                                         <button type="button" class="ai-example-chip" data-query="{{ __('Calculate mortgage for a $500,000 property with 20% down payment') }}">{{ __('Calculate mortgage for a $500,000 property with 20% down payment') }}</button>
                                         <button type="button" class="ai-example-chip" data-query="{{ __('Show me houses with gardens in suburban areas') }}">{{ __('Show me houses with gardens in suburban areas') }}</button>
@@ -1229,8 +1233,43 @@
     .ai-assistant-location-btn:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.5); }
     .ai-assistant-location-btn .ai-location-icon { flex-shrink: 0; }
     .ai-assistant-location-btn .ai-assistant-location-btn-text { white-space: nowrap; }
+    .ai-assistant-theme-toggle { position: absolute; top: 16px; right: 62px; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.1); color: #fff; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: background .2s, border-color .2s; }
+    .ai-assistant-theme-toggle:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.5); }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-theme-toggle { border-color: rgba(0,0,0,.2); background: rgba(0,0,0,.06); color: #1e3a5f; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-theme-toggle:hover { background: rgba(0,0,0,.1); border-color: rgba(0,0,0,.3); }
     .ai-assistant-fullscreen-toggle { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.1); color: #fff; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: background .2s, border-color .2s; }
     .ai-assistant-fullscreen-toggle:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.5); }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-fullscreen-toggle { border-color: rgba(0,0,0,.2); background: rgba(0,0,0,.06); color: #1e3a5f; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-fullscreen-toggle:hover { background: rgba(0,0,0,.1); border-color: rgba(0,0,0,.3); }
+    /* Light theme: only the chat card */
+    .ai-property-assistant-card.ai-chat-theme-light { background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%); box-shadow: 0 12px 40px rgba(0,0,0,.12); }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-location-btn { border-color: rgba(0,0,0,.2); background: rgba(0,0,0,.06); color: #1e3a5f; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-location-btn:hover { background: rgba(0,0,0,.1); border-color: rgba(0,0,0,.3); }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-card-title { color: #1e3a5f; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-card-subtitle { color: #475569; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-online { color: #059669; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-inline-messages .ai-assistant-msg.assistant { background: rgba(59, 130, 246, 0.12); color: #1e3a5f; border-color: rgba(59, 130, 246, 0.25); }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-inline-messages .ai-assistant-msg.user { background: #1e3a5f; color: #fff; border-color: rgba(0,0,0,.1); }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-inline-messages .ai-assistant-msg .ai-msg-label { color: #475569; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-inline-messages .ai-assistant-msg.success { background: rgba(34, 197, 94, 0.15); color: #047857; border-color: rgba(34, 197, 94, 0.3); }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-inline-messages .ai-assistant-msg.error { background: rgba(239, 68, 68, 0.15); color: #b91c1c; border-color: rgba(239, 68, 68, 0.3); }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-examples-label { color: #475569; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-example-chip { background: rgba(0,0,0,.06); border-color: rgba(0,0,0,.15); color: #334155; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-example-chip:hover { background: rgba(0,0,0,.1); border-color: rgba(0,0,0,.25); }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-inline-input { border-color: rgba(0,0,0,.2); background: #fff; color: #1e3a5f; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-inline-input::placeholder { color: #94a3b8; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-assistant-inline-cta { color: #64748b; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-chat-property-card { background: rgba(255,255,255,.9); border-color: rgba(0,0,0,.1); }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-chat-property-card-title { color: #1e3a5f; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-chat-property-card-desc { color: #475569; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-chat-property-card-link { color: #475569; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-chat-property-card-actions .btn-contact { border-color: rgba(30,58,95,.3); color: #1e3a5f; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-chat-property-inquiry-form { background: rgba(255,255,255,.8); border-color: rgba(0,0,0,.1); }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-chat-property-inquiry-form input,
+    .ai-property-assistant-card.ai-chat-theme-light .ai-chat-property-inquiry-form textarea { border-color: rgba(0,0,0,.15); background: #fff; color: #1e3a5f; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-inline-quick-btn { background: rgba(30,58,95,.12); border-color: rgba(0,0,0,.15); color: #1e3a5f; }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-inline-quick-btn:hover { background: rgba(30,58,95,.2); }
+    .ai-property-assistant-card.ai-chat-theme-light .ai-chat-property-view-all { background: rgba(0,0,0,.06); }
     .ai-assistant-fullscreen-overlay { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 16px; }
     .ai-assistant-fullscreen-overlay:not(.d-none) { display: flex !important; }
     .ai-assistant-fullscreen-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.6); }
@@ -1351,6 +1390,44 @@
         if (fullscreenToggleBtn) fullscreenToggleBtn.addEventListener('click', toggleAiFullscreen);
         if (fullscreenBackdrop) fullscreenBackdrop.addEventListener('click', closeAiFullscreen);
 
+        var AI_CHAT_THEME_KEY = 'ai-chat-theme';
+        var themeToggleBtn = document.getElementById('ai-assistant-theme-toggle');
+        function applyChatTheme(isLight) {
+            if (!cardMovable) return;
+            if (isLight) {
+                cardMovable.classList.add('ai-chat-theme-light');
+                try { localStorage.setItem(AI_CHAT_THEME_KEY, 'light'); } catch (e) {}
+                if (themeToggleBtn) {
+                    var iconDark = themeToggleBtn.querySelector('.ai-theme-icon-dark');
+                    var iconLight = themeToggleBtn.querySelector('.ai-theme-icon-light');
+                    if (iconDark) { iconDark.classList.remove('d-none'); }
+                    if (iconLight) { iconLight.classList.add('d-none'); }
+                    themeToggleBtn.setAttribute('title', '{{ __("Dark mode") }}');
+                    themeToggleBtn.setAttribute('aria-label', '{{ __("Switch to dark mode") }}');
+                }
+            } else {
+                cardMovable.classList.remove('ai-chat-theme-light');
+                try { localStorage.setItem(AI_CHAT_THEME_KEY, 'dark'); } catch (e) {}
+                if (themeToggleBtn) {
+                    var iconDark = themeToggleBtn.querySelector('.ai-theme-icon-dark');
+                    var iconLight = themeToggleBtn.querySelector('.ai-theme-icon-light');
+                    if (iconDark) { iconDark.classList.add('d-none'); }
+                    if (iconLight) { iconLight.classList.remove('d-none'); }
+                    themeToggleBtn.setAttribute('title', '{{ __("Light mode") }}');
+                    themeToggleBtn.setAttribute('aria-label', '{{ __("Switch to light mode") }}');
+                }
+            }
+        }
+        if (themeToggleBtn && cardMovable) {
+            try {
+                var saved = localStorage.getItem(AI_CHAT_THEME_KEY);
+                if (saved === 'light') applyChatTheme(true);
+            } catch (e) {}
+            themeToggleBtn.addEventListener('click', function() {
+                applyChatTheme(!cardMovable.classList.contains('ai-chat-theme-light'));
+            });
+        }
+
         var chatUrl = '{{ route("ai.assistant.chat") }}';
         var csrf = '{{ csrf_token() }}';
         var inlineHistory = [];
@@ -1388,7 +1465,7 @@
                 var contact = data.contact || null;
                 var html = '<div class="ai-property-detail-inline">';
                 html += '<p><strong>' + (prop.title || '') + '</strong></p>';
-                html += '<p>' + (prop.price ? (prop.price + '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '{{ __("Negotiable") }}') + '</p>';
+                html += '<p>' + (prop.price ? '$' + (prop.price + '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '{{ __("Negotiable") }}') + '</p>';
                 if (prop.address) html += '<p>' + prop.address + '</p>';
                 if (prop.description) html += '<p style="font-size:12px;opacity:.9;margin-top:6px;">' + prop.description.substring(0, 300) + (prop.description.length > 300 ? '...' : '') + '</p>';
                 if (contact) {
@@ -1412,7 +1489,7 @@
             var wrap = document.createElement('div');
             wrap.className = 'ai-chat-property-results';
             list.forEach(function(p) {
-                var priceText = p.price ? (p.price + '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '{{ __("Negotiable") }}';
+                var priceText = p.price ? '$' + (p.price + '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '{{ __("Negotiable") }}';
                 var card = document.createElement('div');
                 card.className = 'ai-chat-property-card';
                 var a = document.createElement('a');
