@@ -243,8 +243,16 @@ class BasicController extends Controller
   public function mailFromAdmin()
   {
     $data = DB::table('basic_settings')
+      ->where('uniqid', 12345)
       ->select('smtp_status', 'smtp_host', 'smtp_port', 'encryption', 'smtp_username', 'smtp_password', 'from_mail', 'from_name')
       ->first();
+
+    if (!$data) {
+      $data = (object) [
+        'smtp_status' => 0, 'smtp_host' => '', 'smtp_port' => 587, 'encryption' => 'tls',
+        'smtp_username' => '', 'smtp_password' => '', 'from_mail' => '', 'from_name' => '',
+      ];
+    }
 
     return view('backend.basic-settings.email.mail-from-admin', ['data' => $data]);
   }

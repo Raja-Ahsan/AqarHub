@@ -27,6 +27,7 @@ use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Session;
@@ -97,10 +98,17 @@ class VendorController extends Controller
             $mailSubject = $mailTemplate->mail_subject;
             $mailBody = $mailTemplate->mail_body;
 
-            // second, send a password reset link to user via email
+            // second, get mail settings from same row admin uses (Mail From Admin page)
             $info = DB::table('basic_settings')
+                ->where('uniqid', 12345)
                 ->select('website_title', 'smtp_status', 'smtp_host', 'smtp_port', 'encryption', 'smtp_username', 'smtp_password', 'from_mail', 'from_name')
                 ->first();
+
+            if (!$info || !$info->from_mail) {
+                Session::flash('message', 'Mail could not be sent! Please set email settings in Admin → Basic Settings → Mail From Admin.');
+                Session::flash('alert-type', 'error');
+                return redirect()->back();
+            }
 
             $token =  $request->email;
 
@@ -116,22 +124,31 @@ class VendorController extends Controller
                 'body' => $mailBody,
             ];
 
-            // if smtp status == 1, then set some value for PHPMailer
+            // if smtp status == 1, use admin SMTP settings; otherwise Laravel uses .env
             if ($info->smtp_status == 1) {
+                $encryption = $info->encryption;
+                if ($encryption === '' || $encryption === 'none' || strtolower((string) $encryption) === 'null') {
+                    $encryption = null;
+                }
+                $smtpHost = trim((string) $info->smtp_host);
+                if (strtolower($smtpHost) === 'smpt.gmail.com') {
+                    $smtpHost = 'smtp.gmail.com';
+                }
                 try {
                     $smtp = [
                         'transport' => 'smtp',
-                        'host' => $info->smtp_host,
-                        'port' => $info->smtp_port,
-                        'encryption' => $info->encryption,
+                        'host' => $smtpHost,
+                        'port' => (int) $info->smtp_port,
+                        'encryption' => $encryption,
                         'username' => $info->smtp_username,
                         'password' => $info->smtp_password,
                         'timeout' => null,
-                        'auth_mode' => 'PLAIN',
-                        'verify_peer'       => false,
+                        'auth_mode' => null,
                     ];
                     Config::set('mail.mailers.smtp', $smtp);
+                    Config::set('mail.from', ['address' => $info->from_mail, 'name' => $info->from_name]);
                 } catch (\Exception $e) {
+                    Log::error('Vendor signup mail config failed: ' . $e->getMessage());
                     Session::flash('error', $e->getMessage());
                     return back();
                 }
@@ -150,7 +167,8 @@ class VendorController extends Controller
 
                 Session::flash('success', 'A verification mail has been sent to your email address');
             } catch (\Exception $e) {
-                Session::flash('message', 'Mail could not be sent!');
+                Log::error('Vendor signup verification mail failed: ' . $e->getMessage(), ['exception' => $e]);
+                Session::flash('message', 'Mail could not be sent! ' . (config('app.debug') ? $e->getMessage() : 'Check Admin → Basic Settings → Mail From Admin and your SMTP credentials.'));
                 Session::flash('alert-type', 'error');
                 return redirect()->back();
             }
@@ -613,10 +631,17 @@ class VendorController extends Controller
         $mailSubject = $mailTemplate->mail_subject;
         $mailBody = $mailTemplate->mail_body;
 
-        // second, send a password reset link to user via email
+        // get mail settings from same row admin uses (Mail From Admin page)
         $info = DB::table('basic_settings')
+            ->where('uniqid', 12345)
             ->select('website_title', 'smtp_status', 'smtp_host', 'smtp_port', 'encryption', 'smtp_username', 'smtp_password', 'from_mail', 'from_name')
             ->first();
+
+        if (!$info || !$info->from_mail) {
+            Session::flash('error', 'Mail could not be sent! Please set email settings in Admin → Basic Settings → Mail From Admin.');
+            $request->session()->put('userEmail', $user->email);
+            return redirect()->back();
+        }
 
         $name = $user->username;
         $token =  Str::random(32);
@@ -637,27 +662,35 @@ class VendorController extends Controller
             'body' => $mailBody,
         ];
 
-        // if smtp status == 1, then set some value for PHPMailer
         if ($info->smtp_status == 1) {
+            $encryption = $info->encryption;
+            if ($encryption === '' || $encryption === 'none' || strtolower((string) $encryption) === 'null') {
+                $encryption = null;
+            }
+            $smtpHost = trim((string) $info->smtp_host);
+            if (strtolower($smtpHost) === 'smpt.gmail.com') {
+                $smtpHost = 'smtp.gmail.com';
+            }
             try {
                 $smtp = [
                     'transport' => 'smtp',
-                    'host' => $info->smtp_host,
-                    'port' => $info->smtp_port,
-                    'encryption' => $info->encryption,
+                    'host' => $smtpHost,
+                    'port' => (int) $info->smtp_port,
+                    'encryption' => $encryption,
                     'username' => $info->smtp_username,
                     'password' => $info->smtp_password,
                     'timeout' => null,
                     'auth_mode' => null,
                 ];
                 Config::set('mail.mailers.smtp', $smtp);
+                Config::set('mail.from', ['address' => $info->from_mail, 'name' => $info->from_name]);
             } catch (\Exception $e) {
+                Log::error('Vendor forgot-password mail config failed: ' . $e->getMessage());
                 Session::flash('error', $e->getMessage());
                 return back();
             }
         }
 
-        // finally add other informations and send the mail
         try {
             Mail::send([], [], function (Message $message) use ($data, $info) {
                 $fromMail = $info->from_mail;
@@ -670,7 +703,8 @@ class VendorController extends Controller
 
             Session::flash('success', 'A mail has been sent to your email address');
         } catch (\Exception $e) {
-            Session::flash('error', 'Mail could not be sent!');
+            Log::error('Vendor forgot-password mail failed: ' . $e->getMessage(), ['exception' => $e]);
+            Session::flash('error', 'Mail could not be sent! ' . (config('app.debug') ? $e->getMessage() : 'Check Admin → Basic Settings → Mail From Admin.'));
         }
 
         // store user email in session to use it later

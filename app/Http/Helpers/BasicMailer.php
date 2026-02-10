@@ -12,16 +12,21 @@ class BasicMailer
 {
   public static function sendMail($data)
   {
-    // get the website title & mail's smtp information from db
-    $info = Basic::select('website_title', 'smtp_status', 'smtp_host', 'smtp_port', 'encryption', 'smtp_username', 'smtp_password', 'from_mail', 'from_name')
+    // get mail settings from same row admin uses (Basic Settings → Mail From Admin)
+    $info = Basic::where('uniqid', 12345)
+      ->select('website_title', 'smtp_status', 'smtp_host', 'smtp_port', 'encryption', 'smtp_username', 'smtp_password', 'from_mail', 'from_name')
       ->first();
 
     // if smtp status == 1, then set some value for PHPMailer
     if ($info->smtp_status == 1) {
+      $smtpHost = trim((string) $info->smtp_host);
+      if (strtolower($smtpHost) === 'smpt.gmail.com') {
+        $smtpHost = 'smtp.gmail.com';
+      }
       try {
         $smtp = [
           'transport' => 'smtp',
-          'host' => $info->smtp_host,
+          'host' => $smtpHost,
           'port' => $info->smtp_port,
           'encryption' => $info->encryption,
           'username' => $info->smtp_username,
