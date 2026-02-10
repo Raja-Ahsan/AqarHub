@@ -383,8 +383,13 @@
                                                                         {{ __('Translate from default') }}
                                                                     </button>
                                                                     @endif
+                                                                    <button type="button" class="btn btn-sm btn-outline-secondary ai-check-compliance-btn ml-1"
+                                                                        data-desc-id="{{ $language->code }}_description">
+                                                                        {{ __('Check compliance') }}
+                                                                    </button>
                                                                     <span class="ai-generate-status text-muted small ml-2"></span>
                                                                 </div>
+                                                                <div class="ai-compliance-result mb-2" style="display:none;"></div>
                                                                 @endif
                                                                 <textarea id="{{ $language->code }}_description" class="form-control summernote"
                                                                     name="{{ $language->code }}_description" data-height="300"></textarea>
@@ -639,6 +644,7 @@
     })();
     var aiAnalyzeUrl = '{{ route("ai.assistant.analyze_image") }}';
     var aiTranslateUrl = '{{ route("ai.assistant.translate") }}';
+    var aiCheckComplianceUrl = '{{ route("ai.assistant.check_compliance") }}';
     var aiCsrf = '{{ csrf_token() }}';
     (function() {
         var form = document.getElementById('carForm');
@@ -715,6 +721,56 @@
                         onDone();
                     }).catch(function() { onDone(); });
                 }
+            });
+        });
+        document.querySelectorAll('.ai-check-compliance-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var descId = this.getAttribute('data-desc-id');
+                var descVal = getEditorContent(descId);
+                var resultEl = this.closest('.form-group').querySelector('.ai-compliance-result');
+                var statusEl = this.closest('.mb-2').querySelector('.ai-generate-status');
+                if (!resultEl) return;
+                resultEl.style.display = 'none';
+                resultEl.innerHTML = '';
+                if (!descVal || !descVal.trim()) {
+                    if (statusEl) statusEl.textContent = '{{ __("Enter a description first") }}';
+                    return;
+                }
+                if (statusEl) statusEl.textContent = '{{ __("Checking...") }}';
+                btn.disabled = true;
+                fetch(aiCheckComplianceUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': aiCsrf, 'Accept': 'application/json' },
+                    body: JSON.stringify({ description: descVal })
+                }).then(function(r) { return r.json(); }).then(function(data) {
+                    if (statusEl) statusEl.textContent = '';
+                    btn.disabled = false;
+                    resultEl.style.display = 'block';
+                    if (!data.success) {
+                        resultEl.className = 'ai-compliance-result mb-2 alert alert-danger';
+                        resultEl.innerHTML = data.error || '{{ __("Check failed.") }}';
+                        return;
+                    }
+                    if (data.compliant) {
+                        resultEl.className = 'ai-compliance-result mb-2 alert alert-success';
+                        resultEl.innerHTML = '<strong>{{ __("Compliance check") }}</strong>: {{ __("No issues found.") }}' + (data.summary ? ' ' + data.summary : '');
+                    } else {
+                        resultEl.className = 'ai-compliance-result mb-2 alert alert-warning';
+                        var html = '<strong>{{ __("Compliance check") }}</strong>: ' + (data.summary || '{{ __("Some wording may need review.") }}');
+                        if (data.warnings && data.warnings.length) {
+                            html += '<ul class="mb-0 mt-2">';
+                            data.warnings.forEach(function(w) { html += '<li>' + (typeof w === 'string' ? w : '').replace(/</g, '&lt;') + '</li>'; });
+                            html += '</ul>';
+                        }
+                        resultEl.innerHTML = html;
+                    }
+                }).catch(function() {
+                    if (statusEl) statusEl.textContent = '';
+                    btn.disabled = false;
+                    resultEl.style.display = 'block';
+                    resultEl.className = 'ai-compliance-result mb-2 alert alert-danger';
+                    resultEl.innerHTML = '{{ __("Request failed.") }}';
+                });
             });
         });
     })();

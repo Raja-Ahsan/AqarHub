@@ -15,6 +15,11 @@ class Property extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'anomaly_flags' => 'array',
+        'anomaly_checked_at' => 'datetime',
+    ];
+
     protected function isCountryActive(): Attribute
     {
         return Attribute::make(

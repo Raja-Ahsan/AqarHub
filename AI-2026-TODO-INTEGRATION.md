@@ -17,8 +17,8 @@
 |---|----|---------|-------|------|
 | 1 | **A-1** | **Lead scoring (1–10) + dashboard intent summary** | Vendor/Agent dashboard: show counts by intent (ready_to_buy, interested, browsing, question, other); add `lead_score` (1–10) from AI; store in `ai_chat_messages`; sort/filter inquiries by score. | ☑ |
 | 2 | **A-2** | **Suggested reply for inquiries** | Vendor/Agent: on inquiry view (from chat or contact), button "Suggest reply with AI" → pre-fill professional reply. Endpoint `POST /ai-assistant/suggest-reply` (inquiry text + optional property_id). | ☑ |
-| 3 | **A-3** | **Fair Housing / compliance check on description** | Vendor/Admin property form: "Check compliance" button; AI flags risky wording; store last check result or show warnings only. Method `AiAssistantService::checkCompliance($text)`. | ☐ |
-| 4 | **A-8** | **Anomaly detection for listings** | On property save (or before publish): background check – price vs similar properties, required fields, description quality. Flag anomalies in admin/vendor UI (e.g. "Review suggested"). | ☐ |
+| 3 | **A-3** | **Fair Housing / compliance check on description** | Vendor/Admin property form: "Check compliance" button; AI flags risky wording; store last check result or show warnings only. Method `AiAssistantService::checkCompliance($text)`. | ☑ |
+| 4 | **A-8** | **Anomaly detection for listings** | On property save (or before publish): background check – price vs similar properties, required fields, description quality. Flag anomalies in admin/vendor UI (e.g. "Review suggested"). | ☑ |
 
 ---
 
@@ -26,8 +26,8 @@
 
 | # | ID | Feature | Scope | Done |
 |---|----|---------|-------|------|
-| 5 | **B-1** | **Social / ad copy from listing** | Vendor/Admin property edit: "Generate social copy" → Facebook/Instagram/LinkedIn post + hashtags. `AiAssistantService::generateSocialCopy()`. | ☐ |
-| 6 | **B-2** | **Bulk "Generate description" for existing listings** | Vendor/Admin property list: select multiple → "Generate descriptions with AI" (queue job). Throttle API; only for accounts with `has_ai_features`. | ☐ |
+| 5 | **B-1** | **Social / ad copy from listing** | Vendor/Admin property edit: "Generate social copy" → Facebook/Instagram/LinkedIn post + hashtags. `AiAssistantService::generateSocialCopy()`. | ☑ |
+| 6 | **B-2** | **Bulk "Generate description" for existing listings** | Vendor/Admin property list: select multiple → "Generate descriptions with AI" (queue job). Throttle API; only for accounts with `has_ai_features`. | ☑ |
 | 7 | **B-3** | **AI-suggested listing price** | Vendor/Admin property form: "Suggest price" (address + specs) → AI returns range + short justification (clearly "suggestion only"). Use comparables from DB where available. | ☐ |
 | 8 | **A2** | **Smart email campaigns for agents/vendors** | Select leads by intent/property → "Send update (e.g. price drop)" → AI generates personalized email variants → queue send. Respect opt-out / GDPR/CAN-SPAM; store consent. | ☐ |
 | 9 | **A6** | **AI video scripts for listings** | Vendor/Admin: "Generate video script" (TikTok/YouTube/Reels) – 30–60 sec hook, transitions, CTA with timestamps. New method + button on property. | ☐ |
@@ -102,12 +102,12 @@ Work strictly in this order. Mark done only after self-test.
 Phase A:
 [x] 1. A-1   Lead scoring (1–10) + dashboard intent summary
 [x] 2. A-2   Suggested reply for inquiries
-[ ] 3. A-3   Fair Housing / compliance check
-[ ] 4. A-8   Anomaly detection for listings
+[x] 3. A-3   Fair Housing / compliance check
+[x] 4. A-8   Anomaly detection for listings
 
 Phase B:
-[ ] 5. B-1   Social / ad copy from listing
-[ ] 6. B-2   Bulk generate description (queue)
+[x] 5. B-1   Social / ad copy from listing
+[x] 6. B-2   Bulk generate description (queue)
 [ ] 7. B-3   AI-suggested listing price
 [ ] 8. A2    Smart email campaigns
 [ ] 9. A6    AI video scripts for listings
@@ -154,6 +154,10 @@ Use this section to record completion and self-test. Only add an entry when the 
 |----|----------------|--------------|
 | A-1 | 2026-02-03 | Lead score (1–10) stored in ai_chat_messages and property_contacts. classifyIntentAndScore() in AiAssistantService; chat and contactApi save intent+score. Vendor/Agent dashboard: AI Lead Insights card with intent counts + link to messages. Property messages list: sort by lead_score (desc), filter by intent; Intent and Score columns shown. Test: run migrations, enable AI, send chat message and submit inquiry from chat to verify. |
 | A-2 | 2026-02-03 | AiAssistantService::suggestReply(); POST /ai-assistant/suggest-reply (vendor/agent/admin, message + optional name + property_id). Vendor and Agent Property Messages: View modal has "Suggested reply" textarea + "Suggest reply with AI" button; reply is pre-filled for copy/paste. |
+| A-3 | 2026-02-03 | AiAssistantService::checkCompliance($text); POST /ai-assistant/check-compliance (vendor/admin, description text). Vendor/Admin property create & edit: "Check compliance" button per language tab; AI returns compliant + warnings + summary; result shown in alert box (green = no issues, yellow = warnings list). Vendor requires has_ai_features. |
+| A-8 | 2026-02-03 | PropertyAnomalyService::detect() runs in DetectPropertyAnomaliesJob on property store/update (vendor + admin). Checks: required fields (title, address, description, price), description length (min 25 words), price vs similar (city/type). Stored: anomaly_checked_at, anomaly_review_suggested, anomaly_flags (JSON). Vendor & Admin property list: "Review" column with "Review suggested" badge; edit page: warning panel with list of anomaly messages. |
+| B-1 | 2026-02-03 | AiAssistantService::generateSocialCopy(); POST /ai-assistant/generate-social-copy (vendor/admin, property_id). Vendor & Admin property edit: "Generate social copy" button opens modal with Facebook, Instagram, LinkedIn, Hashtags textareas + Copy buttons. Vendor requires has_ai_features. |
+| B-2 | 2026-02-03 | BulkGenerateDescriptionJob per property; POST /ai-assistant/bulk-generate-description (property_ids). Vendor/Admin property list: "Generate descriptions with AI" button when rows selected; jobs dispatched with 15s delay to throttle API; vendor requires has_ai_features. Default-language description/meta updated. |
 | | | |
 | | | |
 

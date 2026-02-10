@@ -620,15 +620,60 @@ $(function ($) {
       }
     });
 
-    // if any checkbox is checked then show the delete button
+    // if any checkbox is checked then show the delete button and bulk-generate-description (if present)
     if (flag == 1) {
       $(".bulk-delete").addClass('d-inline-block');
       $(".bulk-delete").removeClass('d-none');
+      $(".bulk-generate-description").addClass('d-inline-block');
+      $(".bulk-generate-description").removeClass('d-none');
     } else {
-      // if no checkbox is checked then hide the delete button
       $(".bulk-delete").removeClass('d-inline-block');
       $(".bulk-delete").addClass('d-none');
+      $(".bulk-generate-description").removeClass('d-inline-block');
+      $(".bulk-generate-description").addClass('d-none');
     }
+  });
+
+  $('.bulk-generate-description').on('click', function () {
+    var href = $(this).data('href');
+    if (!href) return;
+    var ids = [];
+    $(".bulk-check:checked").each(function () {
+      if ($(this).data('val') != 'all') {
+        ids.push(parseInt($(this).data('val'), 10));
+      }
+    });
+    if (ids.length === 0) return;
+    var $btn = $(this);
+    $btn.prop('disabled', true);
+    if ($(".request-loader").length > 0) {
+      $(".request-loader").addClass('show');
+    }
+    $.ajax({
+      url: href,
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({ property_ids: ids }),
+      headers: {
+        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+        'Accept': 'application/json'
+      },
+      success: function (data) {
+        if (data.success && data.message) {
+          bootnotify(data.message, 'Success', 'success');
+        }
+      },
+      error: function (xhr) {
+        var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Request failed.';
+        bootnotify(msg, 'Error', 'danger');
+      },
+      complete: function () {
+        $btn.prop('disabled', false);
+        if ($(".request-loader").length > 0) {
+          $(".request-loader").removeClass('show');
+        }
+      }
+    });
   });
 
   $('.bulk-delete').on('click', function () {

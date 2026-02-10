@@ -5,6 +5,7 @@ namespace App\Http\Controllers\BackEnd\Property;
 use App\Http\Controllers\Controller;
 use App\Http\Helpers\UploadFile;
 use App\Http\Helpers\VendorPermissionHelper;
+use App\Jobs\DetectPropertyAnomaliesJob;
 use App\Http\Requests\Property\PropertyStoreRequest;
 use App\Http\Requests\Property\PropertyUpdateRequest;
 use App\Models\Agent;
@@ -254,7 +255,8 @@ class PropertyController extends Controller
     }
     public function store(PropertyStoreRequest $request)
     {
-        DB::transaction(function () use ($request) {
+        $propertyId = null;
+        DB::transaction(function () use ($request, &$propertyId) {
 
             $featuredImgURL = $request->featured_image;
             if (request()->hasFile('featured_image')) {
@@ -343,7 +345,11 @@ class PropertyController extends Controller
                     }
                 }
             }
+            $propertyId = $property->id;
         });
+        if ($propertyId) {
+            DetectPropertyAnomaliesJob::dispatch($propertyId);
+        }
         Session::flash('success', 'New Property added successfully!');
 
         return Response::json(['status' => 'success'], 200);
@@ -519,6 +525,7 @@ class PropertyController extends Controller
                 }
             }
         });
+        DetectPropertyAnomaliesJob::dispatch((int) $id);
         Session::flash('success', 'Property Updated successfully!');
 
         return Response::json(['status' => 'success'], 200);

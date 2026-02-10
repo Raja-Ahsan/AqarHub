@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Vendor;
 use App\Http\Controllers\Controller;
 use App\Http\Helpers\MegaMailer;
 use App\Http\Helpers\UploadFile;
+use App\Http\Helpers\VendorPermissionHelper;
+use App\Jobs\DetectPropertyAnomaliesJob;
 use App\Http\Requests\Property\PropertyUpdateRequest;
 use App\Http\Requests\Property\StoreRequest;
 use App\Http\Requests\Property\UpdateRequest;
@@ -96,6 +98,8 @@ class PropertyController extends Controller
         $offlineGateways = OfflineGateway::query()->where('status', '=', 1)->orderBy('serial_number', 'asc')->get();
         $data['onlineGateways'] = $onlineGateways;
         $data['offlineGateways'] = $offlineGateways;
+        $package = VendorPermissionHelper::currentPackagePermission(Auth::guard('vendor')->id());
+        $data['has_ai_features'] = $package && $package->has_ai_features;
         return view('vendors.property.index', $data);
     }
 
@@ -199,7 +203,8 @@ class PropertyController extends Controller
     public function store(StoreRequest $request)
     {
 
-        DB::transaction(function () use ($request) {
+        $propertyId = null;
+        DB::transaction(function () use ($request, &$propertyId) {
 
             $featuredImgURL = $request->featured_image;
             if (request()->hasFile('featured_image')) {
@@ -297,7 +302,11 @@ class PropertyController extends Controller
             $propertyContent = Content::where('property_id', $property->id)->select('title')->first();
 
             $this->mailToAdminForCreateProperty($propertyContent->title, Auth::guard('vendor')->user());
+            $propertyId = $property->id;
         });
+        if ($propertyId) {
+            DetectPropertyAnomaliesJob::dispatch($propertyId);
+        }
         Session::flash('success', 'New Property added successfully!');
 
         return Response::json(['status' => 'success'], 200);
@@ -449,6 +458,7 @@ class PropertyController extends Controller
                 }
             }
         );
+        DetectPropertyAnomaliesJob::dispatch((int) $id);
         Session::flash('success', 'Property Updated successfully!');
 
         return Response::json(['status' => 'success'], 200);

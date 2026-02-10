@@ -13,6 +13,7 @@ use App\Models\Property\Content as PropertyContent;
 use App\Models\Property\CountryContent;
 use App\Models\Property\Property;
 use App\Models\Property\StateContent;
+use App\Jobs\BulkGenerateDescriptionJob;
 use App\Models\Vendor;
 use App\Models\VendorInfo;
 use App\Services\AiAssistantService;
@@ -799,6 +800,185 @@ class AiAssistantController extends Controller
         return response()->json([
             'success' => true,
             'suggested_reply' => $result['suggested_reply'] ?? '',
+        ]);
+    }
+
+    /**
+     * Fair Housing / compliance check on property description (A-3). Vendor or admin only.
+     */
+    public function checkCompliance(Request $request): JsonResponse
+    {
+        if (! Auth::guard('vendor')->check() && ! Auth::guard('admin')->check()) {
+            return response()->json(['success' => false, 'error' => 'Unauthorized.'], 401);
+        }
+        if (Auth::guard('vendor')->check() && ! $this->vendorPackageHasAi()) {
+            return response()->json(['success' => false, 'error' => 'Your package does not include AI features.'], 403);
+        }
+        if (! $this->aiService->isAvailable()) {
+            return response()->json(['success' => false, 'error' => 'AI assistant is not available.'], 503);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'description' => 'required|string|max:15000',
+        ], [
+            'description.required' => 'Please enter or paste the description text to check.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'error' => $validator->errors()->first()], 422);
+        }
+
+        $result = $this->aiService->checkCompliance($request->input('description'));
+
+        if (! $result['success']) {
+            return response()->json([
+                'success' => false,
+                'error' => $result['error'] ?? 'Compliance check failed.',
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'compliant' => $result['compliant'] ?? true,
+            'warnings' => $result['warnings'] ?? [],
+            'summary' => $result['summary'] ?? '',
+        ]);
+    }
+
+    /**
+     * Generate social / ad copy for a property listing (B-1). Vendor or admin only.
+     */
+    public function generateSocialCopy(Request $request): JsonResponse
+    {
+        if (! Auth::guard('vendor')->check() && ! Auth::guard('admin')->check()) {
+            return response()->json(['success' => false, 'error' => 'Unauthorized.'], 401);
+        }
+        if (Auth::guard('vendor')->check() && ! $this->vendorPackageHasAi()) {
+            return response()->json(['success' => false, 'error' => 'Your package does not include AI features.'], 403);
+        }
+        if (! $this->aiService->isAvailable()) {
+            return response()->json(['success' => false, 'error' => 'AI assistant is not available.'], 503);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'property_id' => 'required|integer|exists:properties,id',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'error' => $validator->errors()->first()], 422);
+        }
+
+        $property = Property::with('propertyContents')->find($request->property_id);
+        if (! $property) {
+            return response()->json(['success' => false, 'error' => 'Property not found.'], 404);
+        }
+        if (Auth::guard('vendor')->check() && (int) $property->vendor_id !== (int) Auth::guard('vendor')->id()) {
+            return response()->json(['success' => false, 'error' => 'Access denied.'], 403);
+        }
+
+        $defaultLang = \App\Models\Language::where('is_default', 1)->first();
+        $content = $defaultLang
+            ? $property->propertyContents->where('language_id', $defaultLang->id)->first()
+            : $property->propertyContents->first();
+
+        $title = $content ? trim(strip_tags((string) $content->title)) : '';
+        $description = $content ? trim(strip_tags((string) $content->description)) : '';
+        if (mb_strlen($description) > 3000) {
+            $description = mb_substr($description, 0, 3000);
+        }
+        if ($title === '') {
+            return response()->json(['success' => false, 'error' => __('Property title is required to generate social copy.')], 422);
+        }
+
+        $context = [];
+        if ($property->price !== null && $property->price !== '') {
+            $context['price'] = $property->price;
+        }
+        if ($content && trim((string) $content->address) !== '') {
+            $context['address'] = trim($content->address);
+        }
+        if ($property->type) {
+            $context['type'] = $property->type;
+        }
+        if ($property->purpose) {
+            $context['purpose'] = $property->purpose;
+        }
+        if ($property->beds !== null && $property->beds !== '') {
+            $context['beds'] = $property->beds;
+        }
+        if ($property->bath !== null && $property->bath !== '') {
+            $context['bath'] = $property->bath;
+        }
+        if ($property->area !== null && $property->area !== '') {
+            $context['area'] = $property->area;
+        }
+
+        $result = $this->aiService->generateSocialCopy($title, $description, $context);
+        if (! $result['success']) {
+            return response()->json(['success' => false, 'error' => $result['error'] ?? 'Generation failed.'], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'facebook' => $result['facebook'] ?? '',
+            'instagram' => $result['instagram'] ?? '',
+            'linkedin' => $result['linkedin'] ?? '',
+            'hashtags' => $result['hashtags'] ?? '',
+        ]);
+    }
+
+    /**
+     * Bulk generate descriptions for selected properties (B-2). Queue one job per property with delay to throttle API.
+     * Vendor or admin only; vendor must have has_ai_features.
+     */
+    public function bulkGenerateDescription(Request $request): JsonResponse
+    {
+        if (! Auth::guard('vendor')->check() && ! Auth::guard('admin')->check()) {
+            return response()->json(['success' => false, 'error' => 'Unauthorized.'], 401);
+        }
+        if (Auth::guard('vendor')->check() && ! $this->vendorPackageHasAi()) {
+            return response()->json(['success' => false, 'error' => 'Your package does not include AI features.'], 403);
+        }
+        if (! $this->aiService->isAvailable()) {
+            return response()->json(['success' => false, 'error' => 'AI assistant is not available.'], 503);
+        }
+
+        // Accept property_ids (JSON) or ids (form-style), so both admin and vendor flows work
+        $rawIds = $request->input('property_ids', $request->input('ids', []));
+        if (! is_array($rawIds)) {
+            $rawIds = [];
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', $rawIds))));
+        if (count($ids) === 0) {
+            return response()->json(['success' => false, 'error' => 'Select at least one property.'], 422);
+        }
+        $validator = Validator::make(['property_ids' => $ids], [
+            'property_ids' => 'required|array',
+            'property_ids.*' => 'integer|exists:properties,id',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'error' => $validator->errors()->first()], 422);
+        }
+
+        // Only restrict to vendor's properties when user is vendor (not admin)
+        if (Auth::guard('vendor')->check() && ! Auth::guard('admin')->check()) {
+            $vendorId = (int) Auth::guard('vendor')->id();
+            $allowed = Property::whereIn('id', $ids)->where('vendor_id', $vendorId)->pluck('id')->all();
+            $ids = array_values(array_intersect($ids, $allowed));
+            if (count($ids) === 0) {
+                return response()->json(['success' => false, 'error' => 'No allowed properties found. You can only generate descriptions for your own properties.'], 403);
+            }
+        }
+
+        $delaySeconds = 15;
+        foreach ($ids as $index => $propertyId) {
+            BulkGenerateDescriptionJob::dispatch($propertyId)
+                ->delay(now()->addSeconds($index * $delaySeconds));
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => __('Queued :count property(ies) for description generation. They will be processed in the background.', ['count' => count($ids)]),
+            'queued_count' => count($ids),
         ]);
     }
 

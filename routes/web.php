@@ -49,6 +49,18 @@ Route::post('/ai-assistant/suggest-reply', 'FrontEnd\AiAssistantController@sugge
   ->name('ai.assistant.suggest_reply')
   ->middleware('throttle:15,1');
 
+Route::post('/ai-assistant/check-compliance', 'FrontEnd\AiAssistantController@checkCompliance')
+  ->name('ai.assistant.check_compliance')
+  ->middleware('throttle:15,1');
+
+Route::post('/ai-assistant/generate-social-copy', 'FrontEnd\AiAssistantController@generateSocialCopy')
+  ->name('ai.assistant.generate_social_copy')
+  ->middleware('throttle:10,1');
+
+Route::post('/ai-assistant/bulk-generate-description', 'FrontEnd\AiAssistantController@bulkGenerateDescription')
+  ->name('ai.assistant.bulk_generate_description')
+  ->middleware('throttle:6,1');
+
 Route::get('/offline', 'FrontEnd\HomeController@offline')->middleware('change.lang');
 
 Route::middleware('change.lang')->group(function () {

@@ -62,6 +62,11 @@
                                 class="btn btn-primary btn-sm float-lg-right"><i class="fas fa-plus"></i>
                                 {{ __('Add Property') }}</a>
 
+                            @if(config('ai.enabled') && !empty($has_ai_features))
+                            <button type="button" class="btn btn-outline-primary btn-sm float-lg-right mr-2 d-none bulk-generate-description"
+                                data-href="{{ route('ai.assistant.bulk_generate_description') }}"><i class="fas fa-magic"></i>
+                                {{ __('Generate descriptions with AI') }}</button>
+                            @endif
                             <button class="btn btn-danger btn-sm float-lg-right mr-2 d-none bulk-delete"
                                 data-href="{{ route('vendor.property_management.bulk_delete_property') }}"><i
                                     class="flaticon-interface-5"></i>
@@ -90,6 +95,7 @@
                                                 <th scope="col">{{ __('Approval Status') }}</th>
                                                 <th scope="col">{{ __('Featured') }}</th>
                                                 <th scope="col">{{ __('Status') }}</th>
+                                                <th scope="col">{{ __('Review') }}</th>
                                                 <th scope="col">{{ __('Actions') }}</th>
                                             </tr>
                                         </thead>
@@ -248,6 +254,13 @@
                                                                 </option>
                                                             </select>
                                                         </form>
+                                                    </td>
+                                                    <td>
+                                                        @if (!empty($property->anomaly_review_suggested))
+                                                            <span class="badge badge-warning">{{ __('Review suggested') }}</span>
+                                                        @else
+                                                            <span class="text-muted">—</span>
+                                                        @endif
                                                     </td>
 
                                                     <td>

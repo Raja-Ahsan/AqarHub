@@ -57,10 +57,26 @@
                             {{ __('Preview') }}
                         </a>
                     @endif
+                    @if(config('ai.enabled'))
+                        <button type="button" class="btn btn-outline-primary btn-sm float-right mr-1 d-inline-block" id="aiGenerateSocialCopyBtn" data-property-id="{{ $property->id }}">
+                            <i class="fas fa-share-alt"></i> {{ __('Generate social copy') }}
+                        </button>
+                    @endif
 
                 </div>
 
                 <div class="card-body">
+                    @if (!empty($property->anomaly_checked_at) && !empty($property->anomaly_flags) && is_array($property->anomaly_flags) && count($property->anomaly_flags) > 0)
+                        <div class="alert alert-warning mb-3">
+                            <strong>{{ __('Review suggested') }}</strong>
+                            <p class="mb-1 small">{{ __('Anomaly check (last run :date):', ['date' => $property->anomaly_checked_at->format('M j, Y H:i')]) }}</p>
+                            <ul class="mb-0 pl-3">
+                                @foreach ($property->anomaly_flags as $flag)
+                                    <li>{{ is_array($flag) ? ($flag['message'] ?? '') : $flag }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                     <div class="row">
                         <div class="col-lg-10 offset-lg-1">
                             <div class="alert alert-danger pb-1 dis-none" id="carErrors">
@@ -493,8 +509,13 @@
                                                                         {{ __('Translate from default') }}
                                                                     </button>
                                                                     @endif
+                                                                    <button type="button" class="btn btn-sm btn-outline-secondary ai-check-compliance-btn ml-1"
+                                                                        data-desc-id="{{ $language->code }}_description">
+                                                                        {{ __('Check compliance') }}
+                                                                    </button>
                                                                     <span class="ai-generate-status text-muted small ml-2"></span>
                                                                 </div>
+                                                                <div class="ai-compliance-result mb-2" style="display:none;"></div>
                                                                 @endif
                                                                 <textarea class="form-control summernote " id="{{ $language->code }}_description"
                                                                     name="{{ $language->code }}_description" data-height="300">{{ @$peopertyContent->description }}</textarea>
@@ -676,6 +697,60 @@
             </div>
         </div>
     </div>
+
+    @if(config('ai.enabled'))
+    <div class="modal fade" id="socialCopyModal" tabindex="-1" role="dialog" aria-labelledby="socialCopyModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="socialCopyModalTitle">{{ __('Social / Ad Copy') }}</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">{{ __('Copy the text below for each platform.') }}</p>
+                    <div class="form-group">
+                        <label class="font-weight-bold">{{ __('Facebook') }}</label>
+                        <div class="input-group">
+                            <textarea class="form-control" id="socialCopyFacebook" rows="3" readonly></textarea>
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-outline-secondary btn-copy-social" data-target="socialCopyFacebook">{{ __('Copy') }}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">{{ __('Instagram') }}</label>
+                        <div class="input-group">
+                            <textarea class="form-control" id="socialCopyInstagram" rows="2" readonly></textarea>
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-outline-secondary btn-copy-social" data-target="socialCopyInstagram">{{ __('Copy') }}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">{{ __('LinkedIn') }}</label>
+                        <div class="input-group">
+                            <textarea class="form-control" id="socialCopyLinkedin" rows="3" readonly></textarea>
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-outline-secondary btn-copy-social" data-target="socialCopyLinkedin">{{ __('Copy') }}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold">{{ __('Hashtags') }}</label>
+                        <div class="input-group">
+                            <textarea class="form-control" id="socialCopyHashtags" rows="1" readonly></textarea>
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-outline-secondary btn-copy-social" data-target="socialCopyHashtags">{{ __('Copy') }}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
 @endsection
 
 @php
@@ -722,6 +797,7 @@
     var defaultLang = '{{ $languages->where("is_default", 1)->first()->code ?? "en" }}';
     var aiAnalyzeUrl = '{{ route("ai.assistant.analyze_image") }}';
     var aiTranslateUrl = '{{ route("ai.assistant.translate") }}';
+    var aiCheckComplianceUrl = '{{ route("ai.assistant.check_compliance") }}';
     var aiCsrf = '{{ csrf_token() }}';
     function setEditorContent(editorId, content) {
         if (typeof tinymce !== 'undefined') {
@@ -896,6 +972,99 @@
                         if (data.success && data.translation) setEditorContent(targetDescId, data.translation);
                         onDone();
                     }).catch(function() { onDone(); });
+                }
+            });
+        });
+        document.querySelectorAll('.ai-check-compliance-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var descId = this.getAttribute('data-desc-id');
+                var descVal = getEditorContent(descId);
+                var resultEl = this.closest('.form-group').querySelector('.ai-compliance-result');
+                var statusEl = this.closest('.mb-2').querySelector('.ai-generate-status');
+                if (!resultEl) return;
+                resultEl.style.display = 'none';
+                resultEl.innerHTML = '';
+                if (!descVal || !descVal.trim()) {
+                    if (statusEl) statusEl.textContent = '{{ __("Enter a description first") }}';
+                    return;
+                }
+                if (statusEl) statusEl.textContent = '{{ __("Checking...") }}';
+                btn.disabled = true;
+                fetch(aiCheckComplianceUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': aiCsrf, 'Accept': 'application/json' },
+                    body: JSON.stringify({ description: descVal })
+                }).then(function(r) { return r.json(); }).then(function(data) {
+                    if (statusEl) statusEl.textContent = '';
+                    btn.disabled = false;
+                    resultEl.style.display = 'block';
+                    if (!data.success) {
+                        resultEl.className = 'ai-compliance-result mb-2 alert alert-danger';
+                        resultEl.innerHTML = data.error || '{{ __("Check failed.") }}';
+                        return;
+                    }
+                    if (data.compliant) {
+                        resultEl.className = 'ai-compliance-result mb-2 alert alert-success';
+                        resultEl.innerHTML = '<strong>{{ __("Compliance check") }}</strong>: {{ __("No issues found.") }}' + (data.summary ? ' ' + data.summary : '');
+                    } else {
+                        resultEl.className = 'ai-compliance-result mb-2 alert alert-warning';
+                        var html = '<strong>{{ __("Compliance check") }}</strong>: ' + (data.summary || '{{ __("Some wording may need review.") }}');
+                        if (data.warnings && data.warnings.length) {
+                            html += '<ul class="mb-0 mt-2">';
+                            data.warnings.forEach(function(w) { html += '<li>' + (typeof w === 'string' ? w : '').replace(/</g, '&lt;') + '</li>'; });
+                            html += '</ul>';
+                        }
+                        resultEl.innerHTML = html;
+                    }
+                }).catch(function() {
+                    if (statusEl) statusEl.textContent = '';
+                    btn.disabled = false;
+                    resultEl.style.display = 'block';
+                    resultEl.className = 'ai-compliance-result mb-2 alert alert-danger';
+                    resultEl.innerHTML = '{{ __("Request failed.") }}';
+                });
+            });
+        });
+        var socialCopyBtn = document.getElementById('aiGenerateSocialCopyBtn');
+        if (socialCopyBtn) {
+            socialCopyBtn.addEventListener('click', function() {
+                var propertyId = this.getAttribute('data-property-id');
+                if (!propertyId) return;
+                socialCopyBtn.disabled = true;
+                var url = '{{ route("ai.assistant.generate_social_copy") }}';
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': aiCsrf, 'Accept': 'application/json' },
+                    body: JSON.stringify({ property_id: parseInt(propertyId, 10) })
+                }).then(function(r) { return r.json(); }).then(function(data) {
+                    socialCopyBtn.disabled = false;
+                    if (data.success) {
+                        var fb = document.getElementById('socialCopyFacebook');
+                        var ig = document.getElementById('socialCopyInstagram');
+                        var li = document.getElementById('socialCopyLinkedin');
+                        var ht = document.getElementById('socialCopyHashtags');
+                        if (fb) fb.value = data.facebook || '';
+                        if (ig) ig.value = data.instagram || '';
+                        if (li) li.value = data.linkedin || '';
+                        if (ht) ht.value = data.hashtags || '';
+                        $('#socialCopyModal').modal('show');
+                    } else {
+                        if (typeof $.notify === 'function') {
+                            $.notify({ message: data.error || '{{ __("Failed to generate.") }}', title: '', icon: 'fa fa-exclamation' }, { type: 'warning' });
+                        }
+                    }
+                }).catch(function() {
+                    socialCopyBtn.disabled = false;
+                });
+            });
+        }
+        document.querySelectorAll('.btn-copy-social').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var id = this.getAttribute('data-target');
+                var ta = document.getElementById(id);
+                if (ta && ta.value) {
+                    ta.select();
+                    try { document.execCommand('copy'); } catch (e) {}
                 }
             });
         });

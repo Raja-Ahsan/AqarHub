@@ -506,4 +506,165 @@ class AiAssistantService
             return ['success' => false, 'error' => 'Image analysis failed.'];
         }
     }
+
+    /**
+     * Fair Housing / compliance check on property description text (A-3).
+     * Flags wording that could be seen as discriminatory (e.g. family status, religion, race).
+     *
+     * @return array{ success: bool, compliant?: bool, warnings?: string[], summary?: string, error?: string }
+     */
+    public function checkCompliance(string $text): array
+    {
+        if (empty($this->apiKey)) {
+            return ['success' => false, 'error' => 'AI is not configured.'];
+        }
+
+        $text = $this->sanitizeMessage($text);
+        $text = strip_tags($text);
+        if (mb_strlen($text) > 15000) {
+            return ['success' => false, 'error' => 'Description text is too long for compliance check.'];
+        }
+
+        if (trim($text) === '') {
+            return ['success' => true, 'compliant' => true, 'warnings' => [], 'summary' => 'No description to check.'];
+        }
+
+        $systemPrompt = 'You are a Fair Housing and real estate compliance expert. '
+            . 'Analyze the given property description for wording that could be seen as discriminatory or in violation of Fair Housing guidelines '
+            . '(e.g. references to religion, family status, national origin, race, gender, disability in a preferential or exclusionary way, '
+            . 'phrases like "perfect for families", "walking distance to church", "no children", "ideal for professionals", "Christian neighborhood", etc.). '
+            . 'Reply with a JSON object only, no markdown or extra text: '
+            . '{"compliant": true or false, "warnings": ["list of specific phrases or issues found"], "summary": "One short sentence overall."}. '
+            . 'If no issues found, set compliant to true and warnings to an empty array. Be precise: only flag clearly risky wording.';
+
+        $userPrompt = "Check this property description for Fair Housing / compliance:\n\n" . $text;
+
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(25)
+                ->post('https://api.openai.com/v1/chat/completions', [
+                    'model' => $this->model,
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userPrompt],
+                    ],
+                    'max_tokens' => 500,
+                    'temperature' => 0.2,
+                ]);
+
+            if (! $response->successful()) {
+                Log::warning('AI checkCompliance API error', ['body' => $response->body()]);
+                return ['success' => false, 'error' => 'Compliance check failed.'];
+            }
+
+            $content = trim($response->json('choices.0.message.content', ''));
+            $content = preg_replace('/^```\w*\s*|\s*```$/m', '', $content);
+            $data = json_decode($content, true);
+            if (! is_array($data)) {
+                return ['success' => false, 'error' => 'Could not parse compliance result.'];
+            }
+
+            $compliant = (bool) ($data['compliant'] ?? true);
+            $warnings = $data['warnings'] ?? [];
+            if (! is_array($warnings)) {
+                $warnings = [];
+            }
+            $summary = isset($data['summary']) && is_string($data['summary']) ? trim($data['summary']) : '';
+
+            return [
+                'success' => true,
+                'compliant' => $compliant,
+                'warnings' => $warnings,
+                'summary' => $summary,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('AI checkCompliance: ' . $e->getMessage());
+            return ['success' => false, 'error' => 'Compliance check failed.'];
+        }
+    }
+
+    /**
+     * Generate social / ad copy from listing for Facebook, Instagram, LinkedIn + hashtags (B-1).
+     *
+     * @param  string  $title  Property title
+     * @param  string  $description  Short description or excerpt (plain text)
+     * @param  array  $context  Optional: price, address, type, purpose, beds, bath, area, city, etc.
+     * @return array{ success: bool, facebook?: string, instagram?: string, linkedin?: string, hashtags?: string, error?: string }
+     */
+    public function generateSocialCopy(string $title, string $description = '', array $context = []): array
+    {
+        if (empty($this->apiKey)) {
+            return ['success' => false, 'error' => 'AI is not configured.'];
+        }
+
+        $title = $this->sanitizeMessage($title);
+        $description = $this->sanitizeMessage($description);
+        if (mb_strlen($title) > 500) {
+            $title = mb_substr($title, 0, 500);
+        }
+        if (mb_strlen($description) > 3000) {
+            $description = mb_substr($description, 0, 3000);
+        }
+
+        $contextStr = '';
+        foreach ($context as $key => $value) {
+            if ($value !== null && trim((string) $value) !== '') {
+                $contextStr .= $key . ': ' . trim((string) $value) . "\n";
+            }
+        }
+
+        $systemPrompt = 'You are a real estate marketing expert. Generate social media and ad copy for a property listing. '
+            . 'Reply with a JSON object only, no markdown or code fences: '
+            . '{"facebook": "2-4 sentences for a Facebook post, engaging and shareable", '
+            . '"instagram": "Short caption for Instagram (1-2 sentences, can be punchy)", '
+            . '"linkedin": "Professional 2-3 sentences for LinkedIn", '
+            . '"hashtags": "Space-separated hashtags e.g. #RealEstate #LuxuryHome #Property (8-15 relevant hashtags)"}. '
+            . 'Keep each field concise and platform-appropriate. Do not include a subject line or title inside the post text.';
+
+        $userPrompt = "Property title: " . $title . "\n\n";
+        if ($description !== '') {
+            $userPrompt .= "Description (excerpt): " . $description . "\n\n";
+        }
+        if ($contextStr !== '') {
+            $userPrompt .= "Details:\n" . $contextStr;
+        }
+        $userPrompt .= "\nGenerate the social copy JSON as specified.";
+
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(30)
+                ->post('https://api.openai.com/v1/chat/completions', [
+                    'model' => $this->model,
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userPrompt],
+                    ],
+                    'max_tokens' => 600,
+                    'temperature' => 0.6,
+                ]);
+
+            if (! $response->successful()) {
+                Log::warning('AI generateSocialCopy API error', ['body' => $response->body()]);
+                return ['success' => false, 'error' => 'Could not generate social copy.'];
+            }
+
+            $content = trim($response->json('choices.0.message.content', ''));
+            $content = preg_replace('/^```\w*\s*|\s*```$/m', '', $content);
+            $data = json_decode($content, true);
+            if (! is_array($data)) {
+                return ['success' => false, 'error' => 'Could not parse response.'];
+            }
+
+            return [
+                'success' => true,
+                'facebook' => isset($data['facebook']) && is_string($data['facebook']) ? trim($data['facebook']) : '',
+                'instagram' => isset($data['instagram']) && is_string($data['instagram']) ? trim($data['instagram']) : '',
+                'linkedin' => isset($data['linkedin']) && is_string($data['linkedin']) ? trim($data['linkedin']) : '',
+                'hashtags' => isset($data['hashtags']) && is_string($data['hashtags']) ? trim($data['hashtags']) : '',
+            ];
+        } catch (\Throwable $e) {
+            Log::error('AI generateSocialCopy: ' . $e->getMessage());
+            return ['success' => false, 'error' => 'Could not generate social copy.'];
+        }
+    }
 }
