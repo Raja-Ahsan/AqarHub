@@ -30,6 +30,7 @@ use Session;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use PhpOffice\PhpSpreadsheet\Calculation\Category;
 use View;
@@ -526,7 +527,7 @@ class PropertyController extends Controller
         }
 
         try {
-            PropertyContact::create([
+            $contactData = [
                 'vendor_id' => $vendorId,
                 'agent_id' => $agentId,
                 'property_id' => $request->property_id,
@@ -534,7 +535,16 @@ class PropertyController extends Controller
                 'email' => $request->email,
                 'phone' => $request->phone,
                 'message' => $request->message,
-            ]);
+            ];
+            if (config('ai.enabled', false) && Schema::hasTable('property_contacts') && Schema::hasColumn('property_contacts', 'intent')) {
+                $aiService = app(\App\Services\AiAssistantService::class);
+                $classify = $aiService->classifyIntentAndScore($request->message);
+                if ($classify['success']) {
+                    $contactData['intent'] = $classify['intent'] ?? null;
+                    $contactData['lead_score'] = $classify['lead_score'] ?? null;
+                }
+            }
+            PropertyContact::create($contactData);
             $this->sendMail($request);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'error' => __('Something went wrong!')], 500);

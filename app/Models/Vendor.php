@@ -32,6 +32,9 @@ class Vendor extends Model implements AuthenticatableContract
         'show_email_addresss',
         'show_phone_number',
         'show_contact_form',
+        'auto_reply_enabled',
+        'auto_reply_after_hours',
+        'auto_reply_message',
     ];
 
     public function vendor_infos()

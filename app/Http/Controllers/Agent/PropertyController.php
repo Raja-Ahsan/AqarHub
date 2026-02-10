@@ -10,6 +10,7 @@ use App\Http\Requests\Property\StoreRequest;
 use App\Http\Requests\Property\UpdateRequest;
 use App\Models\Admin;
 use App\Models\Agent;
+use App\Models\AgentInfo;
 use App\Models\Amenity;
 use App\Models\BasicSettings\Basic;
 use App\Models\Language;
@@ -25,9 +26,13 @@ use App\Models\Property\Spacification;
 use App\Models\Property\SpacificationCotent;
 use App\Models\Property\State;
 use App\Models\Vendor;
+use Config;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
@@ -433,10 +438,28 @@ class PropertyController extends Controller
         return Response::json(['status' => 'success'], 200);
     }
 
-    public function messages()
+    public function messages(Request $request)
     {
-        $messages = PropertyContact::with('property')->where('agent_id', Auth::guard('agent')->user()->id)->latest()->get();
-        return view('agent.property.message', compact('messages'));
+        $query = PropertyContact::with('property')->where('agent_id', Auth::guard('agent')->user()->id);
+
+        if (Schema::hasColumn('property_contacts', 'intent') && $request->filled('intent')) {
+            $query->where('intent', $request->intent);
+        }
+        if (Schema::hasColumn('property_contacts', 'lead_score')) {
+            $query->orderByRaw('CASE WHEN lead_score IS NULL THEN 0 ELSE lead_score END DESC')->latest();
+        } else {
+            $query->latest();
+        }
+
+        $messages = $query->get();
+        $intentCounts = [];
+        if (Schema::hasColumn('property_contacts', 'intent')) {
+            $intentCounts = PropertyContact::where('agent_id', Auth::guard('agent')->user()->id)
+                ->selectRaw('intent, count(*) as cnt')->whereNotNull('intent')->where('intent', '!=', '')
+                ->groupBy('intent')->pluck('cnt', 'intent')->toArray();
+        }
+        $showReplySentColumn = Schema::hasColumn('property_contacts', 'reply_email_sent');
+        return view('agent.property.message', compact('messages', 'intentCounts', 'showReplySentColumn'));
     }
     public function destroyMessage(Request $request)
     {
@@ -450,6 +473,94 @@ class PropertyController extends Controller
         }
         Session::flash('success', 'Message deleted successfully');
         return redirect()->back();
+    }
+
+    public function sendReply(Request $request)
+    {
+        $request->validate([
+            'message_id' => 'required|integer',
+            'reply_text' => 'required|string|max:10000',
+        ]);
+
+        $contact = PropertyContact::where('agent_id', Auth::guard('agent')->user()->id)->find($request->message_id);
+        if (! $contact) {
+            return response()->json(['success' => false, 'error' => __('Message not found or access denied.')], 404);
+        }
+
+        if (empty(trim($contact->email))) {
+            return response()->json(['success' => false, 'error' => __('Customer email is missing.')], 422);
+        }
+
+        $defaultLang = Language::where('is_default', 1)->first();
+        $languageId = $defaultLang ? $defaultLang->id : null;
+        $agentInfo = $languageId
+            ? AgentInfo::where('agent_id', $contact->agent_id)->where('language_id', $languageId)->first()
+            : null;
+        $senderName = $agentInfo
+            ? trim(($agentInfo->first_name ?? '') . ' ' . ($agentInfo->last_name ?? ''))
+            : (Auth::guard('agent')->user()->username ?? 'Agent');
+        if ($senderName === '') {
+            $senderName = Auth::guard('agent')->user()->username ?? 'Agent';
+        }
+
+        $info = Basic::where('uniqid', 12345)
+            ->select('website_title', 'smtp_status', 'smtp_host', 'smtp_port', 'encryption', 'smtp_username', 'smtp_password', 'from_mail', 'from_name')
+            ->first();
+        if (! $info) {
+            return response()->json(['success' => false, 'error' => __('Mail configuration not found.')], 500);
+        }
+        $websiteTitle = $info->website_title ?: config('app.name');
+
+        if ($info->smtp_status == 1) {
+            $smtpHost = trim((string) $info->smtp_host);
+            if (strtolower($smtpHost) === 'smpt.gmail.com') {
+                $smtpHost = 'smtp.gmail.com';
+            }
+            Config::set('mail.mailers.smtp', [
+                'transport' => 'smtp',
+                'host' => $smtpHost,
+                'port' => $info->smtp_port,
+                'encryption' => $info->encryption,
+                'username' => $info->smtp_username,
+                'password' => $info->smtp_password,
+                'timeout' => null,
+                'auth_mode' => null,
+            ]);
+        }
+
+        $htmlBody = view('emails.inquiry-reply', [
+            'customerName' => $contact->name ?: __('Customer'),
+            'replyBody' => $request->reply_text,
+            'senderName' => $senderName,
+            'senderRole' => __('Agent'),
+            'websiteTitle' => $websiteTitle,
+        ])->render();
+
+        $fromMail = $info->from_mail ?: config('mail.from.address');
+        $fromName = $info->from_name ?: $websiteTitle;
+        try {
+            Mail::send([], [], function (Message $message) use ($contact, $websiteTitle, $htmlBody, $fromMail, $fromName) {
+                $message->to($contact->email)
+                    ->subject(__('Reply to your property inquiry') . ' - ' . $websiteTitle)
+                    ->from($fromMail, $fromName)
+                    ->html($htmlBody, 'text/html');
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => __('Email could not be sent. Please try again.'),
+            ], 500);
+        }
+
+        if (Schema::hasColumn('property_contacts', 'reply_email_sent')) {
+            $contact->reply_email_sent = 1;
+        }
+        if (Schema::hasColumn('property_contacts', 'reply_sent_at')) {
+            $contact->reply_sent_at = now();
+        }
+        $contact->save();
+
+        return response()->json(['success' => true, 'message' => __('Email sent successfully.')]);
     }
 
     public function getStateCities(Request $request)

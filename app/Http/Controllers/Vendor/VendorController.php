@@ -13,6 +13,7 @@ use App\Models\Membership;
 use App\Models\Package;
 use App\Models\Project\Project;
 use App\Models\Property\Property;
+use App\Models\Property\PropertyContact;
 use App\Models\SupportTicket;
 use App\Models\Vendor;
 use App\Models\VendorInfo;
@@ -31,6 +32,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -411,6 +413,18 @@ class VendorController extends Controller
         $information['totalPropertiesArr'] = $totalPropertyArr;
         $information['totalProjectsArr'] = $totalProjectsArr;
         $information['payment_logs'] = $payment_logs;
+
+        $information['ai_enabled'] = config('ai.enabled', false);
+        $information['ai_intent_counts'] = [];
+        if ($information['ai_enabled'] && Schema::hasTable('property_contacts') && Schema::hasColumn('property_contacts', 'intent')) {
+            $base = PropertyContact::where('vendor_id', $vendor_id);
+            $information['ai_intent_counts'] = (clone $base)->selectRaw('intent, count(*) as cnt')
+                ->whereNotNull('intent')->where('intent', '!=', '')
+                ->groupBy('intent')->pluck('cnt', 'intent')->toArray();
+            $information['ai_total_inquiries'] = (clone $base)->whereNotNull('intent')->where('intent', '!=', '')->count();
+        } else {
+            $information['ai_total_inquiries'] = 0;
+        }
 
         return view('vendors.index', $information);
     }

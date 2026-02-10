@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AiChatMessage extends Model
 {
-    protected $fillable = ['session_id', 'user_id', 'role', 'content', 'intent'];
+    protected $fillable = ['session_id', 'user_id', 'role', 'content', 'intent', 'lead_score'];
 
     public function user(): BelongsTo
     {

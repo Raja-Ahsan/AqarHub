@@ -12,6 +12,7 @@ use App\Models\BasicSettings\MailTemplate;
 use App\Models\Language;
 use App\Models\Project\Project;
 use App\Models\Property\Property;
+use App\Models\Property\PropertyContact;
 use App\Rules\MatchEmailRule;
 use App\Rules\MatchOldPasswordRule;
 use Auth;
@@ -22,6 +23,7 @@ use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
@@ -95,6 +97,19 @@ class AgentController extends Controller
         $information['monthArr'] = $months;
         $information['totalPropertiesArr'] = $totalPropertyArr;
         $information['totalProjectsArr'] = $totalProjectsArr;
+
+        $information['ai_enabled'] = config('ai.enabled', false);
+        $information['ai_intent_counts'] = [];
+        if ($information['ai_enabled'] && Schema::hasTable('property_contacts') && Schema::hasColumn('property_contacts', 'intent')) {
+            $base = PropertyContact::where('agent_id', $agent_id);
+            $information['ai_intent_counts'] = (clone $base)->selectRaw('intent, count(*) as cnt')
+                ->whereNotNull('intent')->where('intent', '!=', '')
+                ->groupBy('intent')->pluck('cnt', 'intent')->toArray();
+            $information['ai_total_inquiries'] = (clone $base)->whereNotNull('intent')->where('intent', '!=', '')->count();
+        } else {
+            $information['ai_total_inquiries'] = 0;
+        }
+
         return view('agent.index', $information);
     }
 

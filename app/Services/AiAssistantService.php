@@ -265,6 +265,22 @@ class AiAssistantService
      */
     public function classifyIntent(string $message): array
     {
+        $result = $this->classifyIntentAndScore($message);
+        if (! $result['success']) {
+            return $result;
+        }
+        return ['success' => true, 'intent' => $result['intent'] ?? 'other'];
+    }
+
+    /**
+     * Classify user message intent and lead score (1-10) in one API call.
+     * Intent: ready_to_buy, interested, browsing, question, other.
+     * Score: 1 (cold) to 10 (ready to buy).
+     *
+     * @return array{ success: bool, intent?: string, lead_score?: int, error?: string }
+     */
+    public function classifyIntentAndScore(string $message): array
+    {
         if (empty($this->apiKey)) {
             return ['success' => false, 'error' => 'AI is not configured.'];
         }
@@ -274,7 +290,9 @@ class AiAssistantService
             return ['success' => false, 'error' => 'Message too long.'];
         }
 
-        $systemPrompt = 'You are a real estate lead classifier. Classify the user message intent. Reply with ONLY one word, nothing else: ready_to_buy, interested, browsing, question, or other.';
+        $systemPrompt = 'You are a real estate lead classifier. For the user message, reply with ONLY a JSON object (no markdown, no code block): {"intent": "ready_to_buy"|"interested"|"browsing"|"question"|"other", "score": 1-10}. '
+            . 'Intent: ready_to_buy = wants to buy/rent soon, interested = serious interest, browsing = exploring, question = general question, other = none of these. '
+            . 'Score: 1-3 = low interest, 4-5 = browsing, 6-7 = interested, 8-10 = ready to buy or high intent.';
 
         try {
             $response = Http::withToken($this->apiKey)
@@ -285,7 +303,7 @@ class AiAssistantService
                         ['role' => 'system', 'content' => $systemPrompt],
                         ['role' => 'user', 'content' => $message],
                     ],
-                    'max_tokens' => 20,
+                    'max_tokens' => 80,
                     'temperature' => 0.2,
                 ]);
 
@@ -293,15 +311,26 @@ class AiAssistantService
                 return ['success' => false, 'error' => 'Classification failed.'];
             }
 
-            $intent = trim(strtolower($response->json('choices.0.message.content', 'other')));
+            $content = trim($response->json('choices.0.message.content', ''));
+            $content = preg_replace('/^```\w*\s*|\s*```$/m', '', $content);
+            $data = json_decode($content, true);
+
+            if (! is_array($data)) {
+                return ['success' => false, 'error' => 'Classification failed.'];
+            }
+
+            $intent = isset($data['intent']) ? trim(strtolower((string) $data['intent'])) : 'other';
             $allowed = ['ready_to_buy', 'interested', 'browsing', 'question', 'other'];
             if (! in_array($intent, $allowed)) {
                 $intent = 'other';
             }
 
-            return ['success' => true, 'intent' => $intent];
+            $score = isset($data['score']) ? (int) $data['score'] : 5;
+            $score = max(1, min(10, $score));
+
+            return ['success' => true, 'intent' => $intent, 'lead_score' => $score];
         } catch (\Throwable $e) {
-            Log::error('AI classifyIntent: ' . $e->getMessage());
+            Log::error('AI classifyIntentAndScore: ' . $e->getMessage());
             return ['success' => false, 'error' => 'Classification failed.'];
         }
     }
@@ -347,6 +376,66 @@ class AiAssistantService
         } catch (\Throwable $e) {
             Log::error('AI translate: ' . $e->getMessage());
             return ['success' => false, 'error' => 'Translation failed.'];
+        }
+    }
+
+    /**
+     * Suggest a professional reply to a property inquiry (A-2).
+     *
+     * @param  string  $inquiryMessage  The inquiry message from the lead
+     * @param  string|null  $inquirerName  Optional name of the inquirer
+     * @param  string|null  $propertyContext  Optional context (e.g. property title/address)
+     * @return array{ success: bool, suggested_reply?: string, error?: string }
+     */
+    public function suggestReply(string $inquiryMessage, ?string $inquirerName = null, ?string $propertyContext = null): array
+    {
+        if (empty($this->apiKey)) {
+            return ['success' => false, 'error' => 'AI is not configured.'];
+        }
+
+        $inquiryMessage = $this->sanitizeMessage($inquiryMessage);
+        if (mb_strlen($inquiryMessage) > 3000) {
+            return ['success' => false, 'error' => 'Inquiry text too long.'];
+        }
+
+        $contextParts = [];
+        if ($inquirerName !== null && trim($inquirerName) !== '') {
+            $contextParts[] = 'Inquirer name: ' . $this->sanitizeMessage(trim($inquirerName));
+        }
+        if ($propertyContext !== null && trim($propertyContext) !== '') {
+            $contextParts[] = 'Property context: ' . $this->sanitizeMessage(trim($propertyContext));
+        }
+        $contextBlock = empty($contextParts) ? '' : "\n\n" . implode("\n", $contextParts);
+
+        $userPrompt = "A potential buyer or tenant sent the following inquiry to a real estate agent or vendor. Write a short, professional reply (2–4 sentences) that:\n"
+            . "- Thanks them for their interest\n"
+            . "- Acknowledges their question or request\n"
+            . "- Offers to provide more details or schedule a viewing\n"
+            . "- Is friendly but concise (suitable for email or message). Do not include a subject line or salutation like 'Dear X'—just the body of the reply.\n\n"
+            . "Inquiry:\n" . $inquiryMessage . $contextBlock;
+
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(25)
+                ->post('https://api.openai.com/v1/chat/completions', [
+                    'model' => $this->model,
+                    'messages' => [
+                        ['role' => 'system', 'content' => 'You are a professional real estate assistant. Write brief, professional reply text only. No greetings like "Hi" or "Dear" at the start—go straight to the reply body.'],
+                        ['role' => 'user', 'content' => $userPrompt],
+                    ],
+                    'max_tokens' => 350,
+                    'temperature' => 0.5,
+                ]);
+
+            if (! $response->successful()) {
+                return ['success' => false, 'error' => 'Could not generate reply.'];
+            }
+
+            $suggestedReply = trim($response->json('choices.0.message.content', ''));
+            return ['success' => true, 'suggested_reply' => $suggestedReply];
+        } catch (\Throwable $e) {
+            Log::error('AI suggestReply: ' . $e->getMessage());
+            return ['success' => false, 'error' => 'Could not generate reply.'];
         }
     }
 

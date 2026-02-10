@@ -45,6 +45,10 @@ Route::post('/ai-assistant/inquiry', 'FrontEnd\PropertyController@contactApi')
   ->name('ai.assistant.inquiry')
   ->middleware('throttle:20,1');
 
+Route::post('/ai-assistant/suggest-reply', 'FrontEnd\AiAssistantController@suggestReply')
+  ->name('ai.assistant.suggest_reply')
+  ->middleware('throttle:15,1');
+
 Route::get('/offline', 'FrontEnd\HomeController@offline')->middleware('change.lang');
 
 Route::middleware('change.lang')->group(function () {

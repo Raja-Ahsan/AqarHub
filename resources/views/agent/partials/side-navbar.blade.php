@@ -116,6 +116,12 @@
                             <p>{{ __('Property Messages') }}</p>
                         </a>
                     </li>
+                    <li class="nav-item @if (request()->routeIs('agent.auto_reply_settings.index')) active @endif">
+                        <a href="{{ route('agent.auto_reply_settings.index') }}">
+                            <i class="fas fa-clock"></i>
+                            <p>{{ __('Auto-Reply Settings') }}</p>
+                        </a>
+                    </li>
 
                     {{-- Project management  start --}}
 

@@ -120,6 +120,12 @@
                             <p>{{ __('Property Messages') }}</p>
                         </a>
                     </li>
+                    <li class="nav-item @if (request()->routeIs('vendor.auto_reply_settings.index')) active @endif">
+                        <a href="{{ route('vendor.auto_reply_settings.index') }}">
+                            <i class="fas fa-clock"></i>
+                            <p>{{ __('Auto-Reply Settings') }}</p>
+                        </a>
+                    </li>
                 @endif
                 @if ($userCurrentPackage)
                     <li

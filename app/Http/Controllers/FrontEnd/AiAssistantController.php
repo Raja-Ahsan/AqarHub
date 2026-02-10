@@ -147,10 +147,12 @@ class AiAssistantController extends Controller
             $sessionId = $request->session()->getId();
             $userId = Auth::guard('web')->id();
             $intent = null;
+            $leadScore = null;
             if (Schema::hasColumn('ai_chat_messages', 'intent')) {
-                $classify = $this->aiService->classifyIntent($message);
-                if ($classify['success'] && ! empty($classify['intent'])) {
-                    $intent = $classify['intent'];
+                $classify = $this->aiService->classifyIntentAndScore($message);
+                if ($classify['success']) {
+                    $intent = $classify['intent'] ?? null;
+                    $leadScore = isset($classify['lead_score']) ? (int) $classify['lead_score'] : null;
                 }
             }
             AiChatMessage::create(array_filter([
@@ -159,6 +161,7 @@ class AiAssistantController extends Controller
                 'role' => 'user',
                 'content' => $message,
                 'intent' => $intent,
+                'lead_score' => $leadScore,
             ]));
             AiChatMessage::create([
                 'session_id' => $sessionId,
@@ -741,6 +744,61 @@ class AiAssistantController extends Controller
         return response()->json([
             'success' => true,
             'translation' => $result['translation'],
+        ]);
+    }
+
+    /**
+     * Suggest a professional reply to an inquiry (A-2). Vendor, agent, or admin only.
+     */
+    public function suggestReply(Request $request): JsonResponse
+    {
+        if (! Auth::guard('vendor')->check() && ! Auth::guard('agent')->check() && ! Auth::guard('admin')->check()) {
+            return response()->json(['success' => false, 'error' => 'Unauthorized.'], 401);
+        }
+        if (Auth::guard('vendor')->check() && ! $this->vendorPackageHasAi()) {
+            return response()->json(['success' => false, 'error' => 'Your package does not include AI features.'], 403);
+        }
+        if (! $this->aiService->isAvailable()) {
+            return response()->json(['success' => false, 'error' => 'AI assistant is not available.'], 503);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'message' => 'required|string|max:3000',
+            'name' => 'nullable|string|max:255',
+            'property_id' => 'nullable|integer|exists:properties,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'error' => $validator->errors()->first()], 422);
+        }
+
+        $propertyContext = null;
+        if ($request->filled('property_id')) {
+            $property = Property::with('propertyContent')->find($request->property_id);
+            if ($property) {
+                $content = $property->propertyContent ?? $property->propertyContents()->first();
+                if ($content) {
+                    $propertyContext = ($content->title ?? '') . (trim((string) ($content->address ?? '')) !== '' ? ' – ' . $content->address : '');
+                }
+                if (empty($propertyContext)) {
+                    $propertyContext = 'Property #' . $property->id;
+                }
+            }
+        }
+
+        $result = $this->aiService->suggestReply(
+            $request->input('message'),
+            $request->input('name'),
+            $propertyContext
+        );
+
+        if (! $result['success']) {
+            return response()->json(['success' => false, 'error' => $result['error'] ?? 'Could not generate reply.'], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'suggested_reply' => $result['suggested_reply'] ?? '',
         ]);
     }
 

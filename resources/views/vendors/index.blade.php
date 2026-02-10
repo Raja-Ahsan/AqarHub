@@ -206,6 +206,50 @@
             </div>
         @endif
 
+        @if (!empty($ai_enabled))
+            <div class="col-sm-6 col-md-4">
+                <a href="{{ route('vendor.property_message.index') }}">
+                    <div class="card card-stats card-warning card-round">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-5">
+                                    <div class="icon-big text-center">
+                                        <i class="fas fa-robot"></i>
+                                    </div>
+                                </div>
+                                <div class="col-7 col-stats">
+                                    <div class="numbers">
+                                        <p class="card-category">{{ __('AI Lead Insights') }}</p>
+                                        <h4 class="card-title">{{ $ai_total_inquiries ?? 0 }}</h4>
+                                        <p class="card-category small mb-0">
+                                            @php
+                                                $counts = $ai_intent_counts ?? [];
+                                                $labels = [
+                                                    'ready_to_buy' => __('Ready to buy'),
+                                                    'interested' => __('Interested'),
+                                                    'browsing' => __('Browsing'),
+                                                    'question' => __('Question'),
+                                                    'other' => __('Other'),
+                                                ];
+                                            @endphp
+                                            @foreach ($labels as $key => $label)
+                                                @if (isset($counts[$key]) && $counts[$key] > 0)
+                                                    <span class="badge badge-light text-dark">{{ $label }}: {{ $counts[$key] }}</span>
+                                                @endif
+                                            @endforeach
+                                            @if (empty(array_filter($counts)))
+                                                <span class="text-muted">{{ __('View inquiries') }}</span>
+                                            @endif
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        @endif
+
     </div>
     <div class="row">
         <div class="col-lg-6">

@@ -47,16 +47,34 @@
 
                         </div>
                     </div>
+
+                    @if (config('ai.enabled', false))
+                    <div class="col-lg-12 mt-2">
+                        <div class="form-group">
+                            <label for="in_suggested_reply">{{ __('Suggested reply') }}</label>
+                            <textarea rows="4" class="form-control" id="in_suggested_reply" placeholder="{{ __('Click "Suggest reply with AI" to generate a professional reply. You can copy and use it in your email or message.') }}"></textarea>
+                            <button type="button" id="aiSuggestReplyBtn" class="btn btn-sm btn-outline-primary mt-2">
+                                <i class="fas fa-robot"></i> {{ __('Suggest reply with AI') }}
+                            </button>
+                            <span id="aiSuggestReplyStatus" class="ml-2 small text-muted"></span>
+                        </div>
+                    </div>
+                    @endif
                 </div> 
             </div>
 
             <div class="modal-footer">
+                <input type="hidden" id="in_id" value="">
+                <input type="hidden" id="in_propertyId" value="">
                 <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
                     {{ __('Close') }}
                 </button>
-                <button id="updateBtn" type="button" class="btn btn-primary btn-sm">
-                    {{ __('Update') }}
+                @if (config('ai.enabled', false))
+                <button type="button" id="sendReplyBtn" class="btn btn-primary btn-sm">
+                    <i class="fas fa-paper-plane"></i> {{ __('Send reply by email') }}
                 </button>
+                <span id="sendReplyStatus" class="ml-2 small"></span>
+                @endif
             </div>
         </div>
     </div>
