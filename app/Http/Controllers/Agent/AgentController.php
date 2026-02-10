@@ -225,7 +225,10 @@ class AgentController extends Controller
         $information['languages'] = Language::get();
 
         $agent_id = Auth::guard('agent')->user()->id;
-        $information['agent'] = Agent::with('agent_info')->where('id', $agent_id)->first();
+        $information['agent'] = Agent::with('agent_info', 'socialConnections')->where('id', $agent_id)->first();
+        $information['social_connections'] = $information['agent']->socialConnections ?? collect();
+        $information['social_redirect_route'] = 'agent.social.redirect';
+        $information['social_disconnect_route'] = 'agent.social.disconnect';
         return view('agent.auth.edit-profile', $information);
     }
     //update_profile

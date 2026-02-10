@@ -204,12 +204,15 @@ class AdminController extends Controller
     $information = [];
     $misc = new MiscellaneousController();
     $adminId = Auth::guard('admin')->user()->id;
-    $information['admin'] = Admin::with('adminInfos')->find($adminId);
+    $information['admin'] = Admin::with('adminInfos', 'socialConnections')->find($adminId);
 
     $language = $misc->getLanguage();
 
     $information['language'] = $language;
     $information['languages'] = Language::get();
+    $information['social_connections'] = $information['admin']->socialConnections ?? collect();
+    $information['social_redirect_route'] = 'admin.social.redirect';
+    $information['social_disconnect_route'] = 'admin.social.disconnect';
 
     return view('backend.admin.edit-profile', $information);
   }

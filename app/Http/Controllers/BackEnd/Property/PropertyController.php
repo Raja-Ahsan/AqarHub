@@ -425,6 +425,8 @@ class PropertyController extends Controller
             $uploadGImg = 999999;
         }
         $information['uploadGImg'] = $uploadGImg;
+        $admin = Auth::guard('admin')->user();
+        $information['social_connections'] = $admin ? $admin->socialConnections : collect();
         return view('backend.property.edit', $information);
     }
 

@@ -44,4 +44,16 @@ return [
     'secret' => env('STRIPE_SECRET'),
   ],
 
+  'facebook' => [
+    'client_id' => env('FACEBOOK_APP_ID'),
+    'client_secret' => env('FACEBOOK_APP_SECRET'),
+    'redirect' => env('FACEBOOK_REDIRECT_URI', rtrim(env('APP_URL'), '/') . '/auth/social/callback/facebook'),
+  ],
+
+  'linkedin' => [
+    'client_id' => env('LINKEDIN_CLIENT_ID'),
+    'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
+    'redirect' => env('LINKEDIN_REDIRECT_URI', rtrim(env('APP_URL'), '/') . '/auth/social/callback/linkedin'),
+  ],
+
 ];

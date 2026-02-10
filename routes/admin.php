@@ -28,6 +28,10 @@ Route::prefix('/admin')->middleware('auth:admin')->group(function () {
   Route::post('/update-password', 'BackEnd\AdminController@updatePassword')->name('admin.update_password');
   // admin profile settings route end
 
+  Route::get('/social-connections/redirect/{driver}', 'FrontEnd\SocialConnectionController@redirectToProvider')->name('admin.social.redirect')->where('driver', 'facebook|linkedin');
+  Route::post('/social-connections/disconnect/{platform}', 'FrontEnd\SocialConnectionController@disconnect')->name('admin.social.disconnect')->where('platform', 'facebook|linkedin');
+  Route::get('/social-connections/list', 'FrontEnd\SocialConnectionController@listConnections')->name('admin.social.list');
+
   // admin logout attempt route
   Route::get('/logout', 'BackEnd\AdminController@logout')->name('admin.logout');
 

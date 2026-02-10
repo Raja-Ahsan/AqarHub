@@ -61,6 +61,14 @@ Route::post('/ai-assistant/bulk-generate-description', 'FrontEnd\AiAssistantCont
   ->name('ai.assistant.bulk_generate_description')
   ->middleware('throttle:6,1');
 
+Route::post('/ai-assistant/post-to-social', 'FrontEnd\AiAssistantController@postToSocial')
+  ->name('ai.assistant.post_to_social')
+  ->middleware('throttle:20,1');
+
+Route::get('/auth/social/callback/{driver}', 'FrontEnd\SocialConnectionController@handleProviderCallback')
+  ->name('social.callback')
+  ->where('driver', 'facebook|linkedin');
+
 Route::get('/offline', 'FrontEnd\HomeController@offline')->middleware('change.lang');
 
 Route::middleware('change.lang')->group(function () {

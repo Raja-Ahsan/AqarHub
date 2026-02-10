@@ -7,6 +7,7 @@ use App\Models\Instrument\EquipmentReview;
 use App\Models\Project\Project;
 use App\Models\Property\Property;
 use App\Models\Property\PropertyContact;
+use App\Models\SocialConnection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Auth\Authenticatable;
@@ -75,5 +76,10 @@ class Vendor extends Model implements AuthenticatableContract
 
     public function propertyMessages(){
         return $this->hasMany(PropertyContact::class,'vendor_id','id');
+    }
+
+    public function socialConnections()
+    {
+        return $this->morphMany(SocialConnection::class, 'connectable');
     }
 }

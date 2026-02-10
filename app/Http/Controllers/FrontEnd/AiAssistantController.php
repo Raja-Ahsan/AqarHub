@@ -14,9 +14,12 @@ use App\Models\Property\CountryContent;
 use App\Models\Property\Property;
 use App\Models\Property\StateContent;
 use App\Jobs\BulkGenerateDescriptionJob;
+use App\Models\Admin;
+use App\Models\SocialConnection;
 use App\Models\Vendor;
 use App\Models\VendorInfo;
 use App\Services\AiAssistantService;
+use App\Services\SocialPostingService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,12 +29,10 @@ use Illuminate\Support\Facades\Validator;
 
 class AiAssistantController extends Controller
 {
-    protected AiAssistantService $aiService;
-
-    public function __construct(AiAssistantService $aiService)
-    {
-        $this->aiService = $aiService;
-    }
+    public function __construct(
+        protected AiAssistantService $aiService,
+        protected SocialPostingService $socialPostingService
+    ) {}
 
     /**
      * Handle chat message from the frontend widget.
@@ -871,7 +872,8 @@ class AiAssistantController extends Controller
         if (! $property) {
             return response()->json(['success' => false, 'error' => 'Property not found.'], 404);
         }
-        if (Auth::guard('vendor')->check() && (int) $property->vendor_id !== (int) Auth::guard('vendor')->id()) {
+        // Only check ownership when user is vendor (admin can generate for any property)
+        if (Auth::guard('vendor')->check() && ! Auth::guard('admin')->check() && (int) $property->vendor_id !== (int) Auth::guard('vendor')->id()) {
             return response()->json(['success' => false, 'error' => 'Access denied.'], 403);
         }
 
@@ -924,6 +926,64 @@ class AiAssistantController extends Controller
             'linkedin' => $result['linkedin'] ?? '',
             'hashtags' => $result['hashtags'] ?? '',
         ]);
+    }
+
+    /**
+     * Post generated copy to a connected social platform (Facebook or LinkedIn). Admin, vendor, or agent.
+     */
+    public function postToSocial(Request $request): JsonResponse
+    {
+        if (! Auth::guard('vendor')->check() && ! Auth::guard('admin')->check() && ! Auth::guard('agent')->check()) {
+            return response()->json(['success' => false, 'error' => 'Unauthorized.'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'platform' => 'required|string|in:facebook,linkedin',
+            'text' => 'required|string|max:10000',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'error' => $validator->errors()->first()], 422);
+        }
+
+        $connectable = $this->currentConnectable();
+        if (! $connectable) {
+            return response()->json(['success' => false, 'error' => 'User not found.'], 403);
+        }
+
+        $connection = SocialConnection::where('connectable_type', $connectable['type'])
+            ->where('connectable_id', $connectable['id'])
+            ->where('platform', $request->platform)
+            ->first();
+
+        if (! $connection || $connection->isExpired()) {
+            return response()->json(['success' => false, 'error' => __(':platform is not connected or token expired. Connect it in Settings.', ['platform' => ucfirst($request->platform)])], 400);
+        }
+
+        $result = $request->platform === 'facebook'
+            ? $this->socialPostingService->postToFacebook($connection, $request->text)
+            : $this->socialPostingService->postToLinkedIn($connection, $request->text);
+
+        if (! $result['success']) {
+            return response()->json(['success' => false, 'error' => $result['error'] ?? 'Post failed.'], 400);
+        }
+        return response()->json(['success' => true, 'message' => __("Posted to :platform successfully.", ['platform' => ucfirst($request->platform)])]);
+    }
+
+    protected function currentConnectable(): ?array
+    {
+        if (Auth::guard('admin')->check()) {
+            $id = Auth::guard('admin')->id();
+            return $id ? ['type' => Admin::class, 'id' => $id] : null;
+        }
+        if (Auth::guard('vendor')->check()) {
+            $id = Auth::guard('vendor')->id();
+            return $id ? ['type' => Vendor::class, 'id' => $id] : null;
+        }
+        if (Auth::guard('agent')->check()) {
+            $id = Auth::guard('agent')->id();
+            return $id ? ['type' => Agent::class, 'id' => $id] : null;
+        }
+        return null;
     }
 
     /**

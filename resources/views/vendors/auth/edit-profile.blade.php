@@ -278,5 +278,12 @@
                     </div>
                 </div>
             </div>
+
+            @include('partials.social-connections', [
+                'social_connections' => $social_connections ?? collect(),
+                'social_redirect_route' => $social_redirect_route ?? 'vendor.social.redirect',
+                'social_disconnect_route' => $social_disconnect_route ?? 'vendor.social.disconnect',
+            ])
         </div>
-    @endsection
+    </div>
+@endsection

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Property\Property;
 use App\Models\RolePermission;
+use App\Models\SocialConnection;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -54,5 +55,10 @@ class Admin extends Model implements AuthenticatableContract
   public function adminInfo()
   {
     return $this->hasOne(AdminInfo::class);
+  }
+
+  public function socialConnections()
+  {
+    return $this->morphMany(SocialConnection::class, 'connectable');
   }
 }

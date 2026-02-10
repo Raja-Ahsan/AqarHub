@@ -354,6 +354,7 @@ class PropertyController extends Controller
         }])->get();
         $information['specifications'] = Spacification::where('property_id', $property->id)->get();
         $information['agents'] = Agent::where('vendor_id', Auth::guard('vendor')->user()->id)->get();
+        $information['social_connections'] = Auth::guard('vendor')->user()->socialConnections ?? collect();
 
         return view('vendors.property.edit', $information);
     }

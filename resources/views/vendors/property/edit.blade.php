@@ -698,13 +698,21 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted small mb-3">{{ __('Copy the text below for each platform.') }}</p>
+                    <p class="text-muted small mb-3">{{ __('Copy the text below for each platform, or post directly if you have connected accounts.') }}</p>
+                    @php
+                        $sc = $social_connections ?? collect();
+                        $fbConnected = $sc->where('platform','facebook')->first() && !$sc->where('platform','facebook')->first()->isExpired();
+                        $liConnected = $sc->where('platform','linkedin')->first() && !$sc->where('platform','linkedin')->first()->isExpired();
+                    @endphp
                     <div class="form-group">
                         <label class="font-weight-bold">{{ __('Facebook') }}</label>
                         <div class="input-group">
                             <textarea class="form-control" id="socialCopyFacebook" rows="3" readonly></textarea>
                             <div class="input-group-append">
                                 <button type="button" class="btn btn-outline-secondary btn-copy-social" data-target="socialCopyFacebook">{{ __('Copy') }}</button>
+                                @if($fbConnected)
+                                <button type="button" class="btn btn-primary btn-post-social ml-1" data-platform="facebook" data-target="socialCopyFacebook">{{ __('Post to Facebook') }}</button>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -723,6 +731,9 @@
                             <textarea class="form-control" id="socialCopyLinkedin" rows="3" readonly></textarea>
                             <div class="input-group-append">
                                 <button type="button" class="btn btn-outline-secondary btn-copy-social" data-target="socialCopyLinkedin">{{ __('Copy') }}</button>
+                                @if($liConnected)
+                                <button type="button" class="btn btn-primary btn-post-social ml-1" data-platform="linkedin" data-target="socialCopyLinkedin">{{ __('Post to LinkedIn') }}</button>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -1051,6 +1062,26 @@
                     ta.select();
                     try { document.execCommand('copy'); } catch (e) {}
                 }
+            });
+        });
+        document.querySelectorAll('.btn-post-social').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var platform = this.getAttribute('data-platform');
+                var targetId = this.getAttribute('data-target');
+                var ta = document.getElementById(targetId);
+                var text = ta ? ta.value : '';
+                if (!text.trim()) return;
+                var url = '{{ route("ai.assistant.post_to_social") }}';
+                this.disabled = true;
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': aiCsrf, 'Accept': 'application/json' },
+                    body: JSON.stringify({ platform: platform, text: text })
+                }).then(function(r) { return r.json(); }).then(function(data) {
+                    btn.disabled = false;
+                    if (data.success && typeof bootnotify !== 'undefined') bootnotify(data.message, '{{ __("Success") }}', 'success');
+                    else if (data.error && typeof bootnotify !== 'undefined') bootnotify(data.error, '{{ __("Error") }}', 'danger');
+                }).catch(function() { btn.disabled = false; });
             });
         });
     })();

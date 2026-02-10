@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Project\Project;
 use App\Models\Property\Property;
 use App\Models\Property\PropertyContact;
+use App\Models\SocialConnection;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -41,5 +42,10 @@ class Agent extends Model implements AuthenticatableContract
 
     public function property_messages(){
         return $this->hasMany(PropertyContact::class,'agent_id','id');
+    }
+
+    public function socialConnections()
+    {
+        return $this->morphMany(SocialConnection::class, 'connectable');
     }
 }
