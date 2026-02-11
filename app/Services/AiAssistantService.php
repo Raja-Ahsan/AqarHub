@@ -804,7 +804,7 @@ class AiAssistantService
         $systemPrompt = 'You are a professional real estate assistant writing a personalized email to a lead. '
             . $typeInstructions . ' '
             . 'Reply with a JSON object only, no markdown or code fences: '
-            . '{"subject": "Email subject line (short, under 60 chars)", "body": "Plain text email body, 2-4 short paragraphs. Use \\n for new lines. Address the recipient by name. Be concise and professional. Do not include unsubscribe text."}.';
+            . '{"subject": "Email subject line (short, under 60 chars)", "body": "Plain text email body, 2-4 short paragraphs. Use \\n for new lines. Address the recipient by name. Be concise and professional. Do not include unsubscribe text, signature line, or [Your Name]—the sender name is added automatically."}.';
 
         $parts = ["Recipient name: " . $name];
         if ($propertyTitle !== '') {
@@ -848,6 +848,7 @@ class AiAssistantService
 
             $subject = isset($data['subject']) && is_string($data['subject']) ? trim($data['subject']) : '';
             $body = isset($data['body']) && is_string($data['body']) ? trim($data['body']) : '';
+            $body = preg_replace('/\s*\[Your Name\]\s*/i', '', $body);
             if ($subject === '' || $body === '') {
                 return ['success' => false, 'error' => 'Missing subject or body in generated email.'];
             }
