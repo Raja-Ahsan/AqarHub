@@ -484,8 +484,13 @@ class VendorController extends Controller
         $information['languages'] = Language::get();
 
         $vendor_id = Auth::guard('vendor')->user()->id;
-        $information['vendor'] = Vendor::with('vendor_info', 'socialConnections')->where('id', $vendor_id)->first();
+        $information['vendor'] = Vendor::with('vendor_info', 'socialConnections', 'socialLink', 'socialCredentials')->where('id', $vendor_id)->first();
         $information['social_connections'] = $information['vendor']->socialConnections ?? collect();
+        $information['social_connections']->each(function ($c) {
+            if ($c->platform === 'tiktok') {
+                $c->refreshTiktokTokenIfNeeded();
+            }
+        });
         $information['social_redirect_route'] = 'vendor.social.redirect';
         $information['social_disconnect_route'] = 'vendor.social.disconnect';
         return view('vendors.auth.edit-profile', $information);

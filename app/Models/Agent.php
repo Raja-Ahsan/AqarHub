@@ -6,6 +6,8 @@ use App\Models\Project\Project;
 use App\Models\Property\Property;
 use App\Models\Property\PropertyContact;
 use App\Models\SocialConnection;
+use App\Models\SocialLink;
+use App\Models\UserSocialCredentials;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -47,5 +49,15 @@ class Agent extends Model implements AuthenticatableContract
     public function socialConnections()
     {
         return $this->morphMany(SocialConnection::class, 'connectable');
+    }
+
+    public function socialLink()
+    {
+        return $this->morphOne(SocialLink::class, 'connectable');
+    }
+
+    public function socialCredentials()
+    {
+        return $this->morphOne(UserSocialCredentials::class, 'connectable');
     }
 }

@@ -618,6 +618,7 @@ class AiAssistantService
             . '{"facebook": "2-4 sentences for a Facebook post, engaging and shareable", '
             . '"instagram": "Short caption for Instagram (1-2 sentences, can be punchy)", '
             . '"linkedin": "Professional 2-3 sentences for LinkedIn", '
+            . '"twitter": "Single tweet for X (Twitter), max 280 characters, punchy and engaging", '
             . '"hashtags": "Space-separated hashtags e.g. #RealEstate #LuxuryHome #Property (8-15 relevant hashtags)"}. '
             . 'Keep each field concise and platform-appropriate. Do not include a subject line or title inside the post text.';
 
@@ -655,11 +656,16 @@ class AiAssistantService
                 return ['success' => false, 'error' => 'Could not parse response.'];
             }
 
+            $twitter = isset($data['twitter']) && is_string($data['twitter']) ? trim($data['twitter']) : '';
+            if (mb_strlen($twitter) > 280) {
+                $twitter = mb_substr($twitter, 0, 277) . '...';
+            }
             return [
                 'success' => true,
                 'facebook' => isset($data['facebook']) && is_string($data['facebook']) ? trim($data['facebook']) : '',
                 'instagram' => isset($data['instagram']) && is_string($data['instagram']) ? trim($data['instagram']) : '',
                 'linkedin' => isset($data['linkedin']) && is_string($data['linkedin']) ? trim($data['linkedin']) : '',
+                'twitter' => $twitter,
                 'hashtags' => isset($data['hashtags']) && is_string($data['hashtags']) ? trim($data['hashtags']) : '',
             ];
         } catch (\Throwable $e) {

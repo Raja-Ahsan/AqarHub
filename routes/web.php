@@ -67,7 +67,7 @@ Route::post('/ai-assistant/post-to-social', 'FrontEnd\AiAssistantController@post
 
 Route::get('/auth/social/callback/{driver}', 'FrontEnd\SocialConnectionController@handleProviderCallback')
   ->name('social.callback')
-  ->where('driver', 'facebook|linkedin');
+  ->where('driver', 'facebook|linkedin|instagram|tiktok|twitter');
 
 Route::get('/offline', 'FrontEnd\HomeController@offline')->middleware('change.lang');
 

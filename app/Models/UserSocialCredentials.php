@@ -1,0 +1,89 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+
+class UserSocialCredentials extends Model
+{
+    protected $table = 'user_social_credentials';
+
+    protected $fillable = [
+        'connectable_type',
+        'connectable_id',
+        'facebook_app_id',
+        'facebook_app_secret',
+        'linkedin_client_id',
+        'linkedin_client_secret',
+        'tiktok_client_key',
+        'tiktok_client_secret',
+        'twitter_client_id',
+        'twitter_client_secret',
+    ];
+
+    public function connectable(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    public function hasFacebook(): bool
+    {
+        return ! empty($this->facebook_app_id) && ! empty($this->facebook_app_secret);
+    }
+
+    public function hasLinkedIn(): bool
+    {
+        return ! empty($this->linkedin_client_id) && ! empty($this->linkedin_client_secret);
+    }
+
+    public function hasTiktok(): bool
+    {
+        return ! empty($this->tiktok_client_key) && ! empty($this->tiktok_client_secret);
+    }
+
+    public function hasTwitter(): bool
+    {
+        return ! empty($this->twitter_client_id) && ! empty($this->twitter_client_secret);
+    }
+
+    public function getFacebookConfig(): array
+    {
+        $base = rtrim(config('app.url'), '/');
+        return [
+            'client_id' => $this->facebook_app_id,
+            'client_secret' => $this->facebook_app_secret,
+            'redirect' => $base . '/auth/social/callback/facebook',
+        ];
+    }
+
+    public function getLinkedInConfig(): array
+    {
+        $base = rtrim(config('app.url'), '/');
+        return [
+            'client_id' => $this->linkedin_client_id,
+            'client_secret' => $this->linkedin_client_secret,
+            'redirect' => $base . '/auth/social/callback/linkedin',
+        ];
+    }
+
+    public function getTiktokConfig(): array
+    {
+        $base = rtrim(config('app.url'), '/');
+        return [
+            'client_key' => $this->tiktok_client_key,
+            'client_secret' => $this->tiktok_client_secret,
+            'redirect' => $base . '/auth/social/callback/tiktok',
+        ];
+    }
+
+    public function getTwitterConfig(): array
+    {
+        $base = rtrim(config('app.url'), '/');
+        return [
+            'client_id' => $this->twitter_client_id,
+            'client_secret' => $this->twitter_client_secret,
+            'redirect' => $base . '/auth/social/callback/twitter',
+        ];
+    }
+}

@@ -59,7 +59,7 @@
                     @endif
                     @if(config('ai.enabled'))
                         <button type="button" class="btn btn-outline-primary btn-sm float-right mr-1 d-inline-block" id="aiGenerateSocialCopyBtn" data-property-id="{{ $property->id }}">
-                            <i class="fas fa-share-alt"></i> {{ __('Generate social copy') }}
+                            <i class="fas fa-share-alt"></i> {{ __('Add on your social pages') }}
                         </button>
                     @endif
 
@@ -703,26 +703,47 @@
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="socialCopyModalTitle">{{ __('Social / Ad Copy') }}</h5>
+                    <h5 class="modal-title" id="socialCopyModalTitle">{{ __('Add on your social pages') }}</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted small mb-3">{{ __('Copy the text below for each platform, or post directly if you have connected accounts.') }}</p>
+                    <p class="text-muted small mb-3">{{ __('Copy the text below or use "Add post" to publish to your connected accounts with text, image/video, and hashtags.') }}</p>
                     @php
                         $sc = $social_connections ?? collect();
                         $fbConnected = $sc->where('platform','facebook')->first() && !$sc->where('platform','facebook')->first()->isExpired();
                         $liConnected = $sc->where('platform','linkedin')->first() && !$sc->where('platform','linkedin')->first()->isExpired();
+                        $igConnected = $sc->where('platform','instagram')->first() && !$sc->where('platform','instagram')->first()->isExpired();
+                        $tiktokConnected = $sc->where('platform','tiktok')->first() && !$sc->where('platform','tiktok')->first()->isExpired();
+                        $twitterConnected = $sc->where('platform','twitter')->first() && !$sc->where('platform','twitter')->first()->isExpired();
+                        $featuredUrl = $property->featured_image ? asset('assets/img/property/featureds/' . $property->featured_image) : '';
+                        $galleryFirst = isset($galleryImages) && $galleryImages->isNotEmpty() ? asset('assets/img/property/slider-images/' . $galleryImages->first()->image) : '';
+                        $videoThumbUrl = !empty($property->video_image) ? asset('assets/img/property/video/' . $property->video_image) : '';
                     @endphp
+                    <input type="hidden" id="socialCopyFeaturedImageUrl" value="{{ $featuredUrl }}">
+                    <div class="form-group mb-3">
+                        <label class="font-weight-bold">{{ __('Media for post (image or video thumbnail)') }}</label>
+                        <select class="form-control" id="socialCopyMediaSelect">
+                            <option value="{{ $featuredUrl }}" data-url="{{ $featuredUrl }}">{{ __('Featured image') }}</option>
+                            @if($galleryFirst)
+                            <option value="{{ $galleryFirst }}" data-url="{{ $galleryFirst }}">{{ __('First gallery image') }}</option>
+                            @endif
+                            @if($videoThumbUrl)
+                            <option value="{{ $videoThumbUrl }}" data-url="{{ $videoThumbUrl }}">{{ __('Video thumbnail') }}</option>
+                            @endif
+                        </select>
+                        <small class="text-muted">{{ __('Choose which image to attach to the post.') }}</small>
+                    </div>
                     <div class="form-group">
                         <label class="font-weight-bold">{{ __('Facebook') }}</label>
                         <div class="input-group">
                             <textarea class="form-control" id="socialCopyFacebook" rows="3" readonly></textarea>
                             <div class="input-group-append">
-                                <button type="button" class="btn btn-outline-secondary btn-copy-social" data-target="socialCopyFacebook">{{ __('Copy') }}</button>
                                 @if($fbConnected)
-                                <button type="button" class="btn btn-primary btn-post-social ml-1" data-platform="facebook" data-target="socialCopyFacebook">{{ __('Post to Facebook') }}</button>
+                                <button type="button" class="btn btn-primary btn-add-post-social" data-platform="facebook" data-text-target="socialCopyFacebook">{{ __('Add post') }}</button>
+                                @else
+                                <span class="btn btn-secondary disabled">{{ __('Connect Facebook in Settings') }}</span>
                                 @endif
                             </div>
                         </div>
@@ -732,30 +753,60 @@
                         <div class="input-group">
                             <textarea class="form-control" id="socialCopyInstagram" rows="2" readonly></textarea>
                             <div class="input-group-append">
-                                <button type="button" class="btn btn-outline-secondary btn-copy-social" data-target="socialCopyInstagram">{{ __('Copy') }}</button>
+                                @if($igConnected)
+                                <button type="button" class="btn btn-primary btn-add-post-social btn-add-post-instagram" data-platform="instagram" data-text-target="socialCopyInstagram">{{ __('Add post') }}</button>
+                                @else
+                                <span class="btn btn-secondary disabled">{{ __('Connect Instagram in Settings') }}</span>
+                                @endif
                             </div>
                         </div>
+                        <small class="text-muted">{{ __('Uses selected media above.') }}</small>
                     </div>
                     <div class="form-group">
                         <label class="font-weight-bold">{{ __('LinkedIn') }}</label>
                         <div class="input-group">
                             <textarea class="form-control" id="socialCopyLinkedin" rows="3" readonly></textarea>
                             <div class="input-group-append">
-                                <button type="button" class="btn btn-outline-secondary btn-copy-social" data-target="socialCopyLinkedin">{{ __('Copy') }}</button>
                                 @if($liConnected)
-                                <button type="button" class="btn btn-primary btn-post-social ml-1" data-platform="linkedin" data-target="socialCopyLinkedin">{{ __('Post to LinkedIn') }}</button>
+                                <button type="button" class="btn btn-primary btn-add-post-social" data-platform="linkedin" data-text-target="socialCopyLinkedin">{{ __('Add post') }}</button>
+                                @else
+                                <span class="btn btn-secondary disabled">{{ __('Connect LinkedIn in Settings') }}</span>
                                 @endif
                             </div>
                         </div>
                     </div>
-                    <div class="form-group mb-0">
-                        <label class="font-weight-bold">{{ __('Hashtags') }}</label>
+                    <div class="form-group">
+                        <label class="font-weight-bold">{{ __('Twitter | X') }}</label>
                         <div class="input-group">
-                            <textarea class="form-control" id="socialCopyHashtags" rows="1" readonly></textarea>
+                            <textarea class="form-control" id="socialCopyTwitter" rows="2" readonly maxlength="280" placeholder="280 {{ __('characters max') }}"></textarea>
                             <div class="input-group-append">
-                                <button type="button" class="btn btn-outline-secondary btn-copy-social" data-target="socialCopyHashtags">{{ __('Copy') }}</button>
+                                @if($twitterConnected)
+                                <button type="button" class="btn btn-primary btn-add-post-social" data-platform="twitter" data-text-target="socialCopyTwitter">{{ __('Add post') }}</button>
+                                @else
+                                <span class="btn btn-secondary disabled">{{ __('Connect X in Settings') }}</span>
+                                @endif
                             </div>
                         </div>
+                        <small class="text-muted">{{ __('280 characters max for X.') }}</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">{{ __('TikTok') }}</label>
+                        <div class="input-group">
+                            <textarea class="form-control" id="socialCopyTiktok" rows="2" readonly placeholder="{{ __('Caption for TikTok (same as Instagram)') }}"></textarea>
+                            <div class="input-group-append">
+                                @if($tiktokConnected)
+                                <button type="button" class="btn btn-dark btn-add-post-tiktok">{{ __('Add post') }}</button>
+                                @else
+                                <span class="btn btn-secondary disabled">{{ __('Connect TikTok in Settings') }}</span>
+                                @endif
+                            </div>
+                        </div>
+                        <small class="text-muted">{{ __('Caption is copied; add your video on TikTok upload page.') }}</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">{{ __('Hashtags') }}</label>
+                        <textarea class="form-control" id="socialCopyHashtags" rows="1" readonly></textarea>
+                        <small class="text-muted">{{ __('Included in each Add post above.') }}</small>
                     </div>
                 </div>
             </div>
@@ -1057,6 +1108,10 @@
                         if (fb) fb.value = data.facebook || '';
                         if (ig) ig.value = data.instagram || '';
                         if (li) li.value = data.linkedin || '';
+                        var tw = document.getElementById('socialCopyTwitter');
+                        if (tw) tw.value = data.twitter || '';
+                        var tiktokEl = document.getElementById('socialCopyTiktok');
+                        if (tiktokEl) tiktokEl.value = data.instagram || data.tiktok || '';
                         if (ht) ht.value = data.hashtags || '';
                         $('#socialCopyModal').modal('show');
                     } else {
@@ -1069,34 +1124,59 @@
                 });
             });
         }
-        document.querySelectorAll('.btn-copy-social').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var id = this.getAttribute('data-target');
-                var ta = document.getElementById(id);
-                if (ta && ta.value) {
-                    ta.select();
-                    try { document.execCommand('copy'); } catch (e) {}
-                }
-            });
-        });
-        document.querySelectorAll('.btn-post-social').forEach(function(btn) {
+        document.querySelectorAll('.btn-add-post-social').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var platform = this.getAttribute('data-platform');
-                var targetId = this.getAttribute('data-target');
-                var ta = document.getElementById(targetId);
-                var text = ta ? ta.value : '';
-                if (!text.trim()) return;
-                var url = '{{ route("ai.assistant.post_to_social") }}';
+                var textTargetId = this.getAttribute('data-text-target');
+                var ta = document.getElementById(textTargetId);
+                var text = ta ? (ta.value || '').trim() : '';
+                var hashtagsEl = document.getElementById('socialCopyHashtags');
+                var hashtags = hashtagsEl ? (hashtagsEl.value || '').trim() : '';
+                if (hashtags) text = text ? (text + ' ' + hashtags) : hashtags;
+                if (!text) {
+                    if (typeof bootnotify !== 'undefined') bootnotify('{{ __("Enter or generate copy first.") }}', '{{ __("Error") }}', 'warning');
+                    return;
+                }
+                var mediaSelect = document.getElementById('socialCopyMediaSelect');
+                var imageUrl = mediaSelect ? (mediaSelect.value || '').trim() : '';
+                if (platform === 'instagram' && !imageUrl && typeof bootnotify !== 'undefined') {
+                    bootnotify('{{ __("Select an image above for Instagram or add a property image.") }}', '{{ __("Error") }}', 'warning');
+                    return;
+                }
                 this.disabled = true;
+                var url = '{{ route("ai.assistant.post_to_social") }}';
                 fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': aiCsrf, 'Accept': 'application/json' },
-                    body: JSON.stringify({ platform: platform, text: text })
+                    body: JSON.stringify({ platform: platform, text: text, image_url: imageUrl || undefined, hashtags: hashtags })
                 }).then(function(r) { return r.json(); }).then(function(data) {
                     btn.disabled = false;
                     if (data.success && typeof bootnotify !== 'undefined') bootnotify(data.message, '{{ __("Success") }}', 'success');
                     else if (data.error && typeof bootnotify !== 'undefined') bootnotify(data.error, '{{ __("Error") }}', 'danger');
                 }).catch(function() { btn.disabled = false; });
+            });
+        });
+        document.querySelectorAll('.btn-add-post-tiktok').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var captionEl = document.getElementById('socialCopyTiktok');
+                var hashtagsEl = document.getElementById('socialCopyHashtags');
+                var caption = captionEl ? (captionEl.value || '').trim() : '';
+                var hashtags = hashtagsEl ? (hashtagsEl.value || '').trim() : '';
+                var text = hashtags ? (caption ? caption + ' ' + hashtags : hashtags) : caption;
+                var copied = false;
+                if (text) {
+                    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                        navigator.clipboard.writeText(text).then(function() { copied = true; }, function() {});
+                    }
+                    if (!copied && captionEl) {
+                        captionEl.select();
+                        try { copied = document.execCommand('copy'); } catch (e) {}
+                    }
+                }
+                window.open('https://www.tiktok.com/upload', '_blank');
+                if (typeof bootnotify !== 'undefined') {
+                    bootnotify('{{ __("Caption copied. Add your video on TikTok — post created successfully.") }}', '{{ __("Success") }}', 'success');
+                }
             });
         });
     })();

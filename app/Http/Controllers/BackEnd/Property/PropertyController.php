@@ -427,6 +427,11 @@ class PropertyController extends Controller
         $information['uploadGImg'] = $uploadGImg;
         $admin = Auth::guard('admin')->user();
         $information['social_connections'] = $admin ? $admin->socialConnections : collect();
+        $information['social_connections']->each(function ($c) {
+            if ($c->platform === 'tiktok') {
+                $c->refreshTiktokTokenIfNeeded();
+            }
+        });
         return view('backend.property.edit', $information);
     }
 

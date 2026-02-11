@@ -355,6 +355,11 @@ class PropertyController extends Controller
         $information['specifications'] = Spacification::where('property_id', $property->id)->get();
         $information['agents'] = Agent::where('vendor_id', Auth::guard('vendor')->user()->id)->get();
         $information['social_connections'] = Auth::guard('vendor')->user()->socialConnections ?? collect();
+        $information['social_connections']->each(function ($c) {
+            if ($c->platform === 'tiktok') {
+                $c->refreshTiktokTokenIfNeeded();
+            }
+        });
 
         return view('vendors.property.edit', $information);
     }

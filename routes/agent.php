@@ -25,9 +25,11 @@ Route::prefix('agent')->middleware('auth:agent')->group(function () {
   Route::post('/update-password', 'Agent\AgentController@updated_password')->name('agent.update_password');
   Route::get('/edit-profile', 'Agent\AgentController@edit_profile')->name('agent.edit.profile');
   Route::post('/profile/update', 'Agent\AgentController@update_profile')->name('agent.update_profile');
-  Route::get('/social-connections/redirect/{driver}', 'FrontEnd\SocialConnectionController@redirectToProvider')->name('agent.social.redirect')->where('driver', 'facebook|linkedin');
-  Route::post('/social-connections/disconnect/{platform}', 'FrontEnd\SocialConnectionController@disconnect')->name('agent.social.disconnect')->where('platform', 'facebook|linkedin');
+  Route::get('/social-connections/redirect/{driver}', 'FrontEnd\SocialConnectionController@redirectToProvider')->name('agent.social.redirect')->where('driver', 'facebook|linkedin|instagram|tiktok|twitter');
+  Route::post('/social-connections/disconnect/{platform}', 'FrontEnd\SocialConnectionController@disconnect')->name('agent.social.disconnect')->where('platform', 'facebook|linkedin|instagram|tiktok|twitter');
   Route::get('/social-connections/list', 'FrontEnd\SocialConnectionController@listConnections')->name('agent.social.list');
+  Route::post('/social-links', 'FrontEnd\SocialConnectionController@updateSocialLinks')->name('agent.social_links.update');
+  Route::post('/social-credentials', 'FrontEnd\SocialConnectionController@updateSocialCredentials')->name('agent.social_credentials.update');
   Route::get('/logout', 'Agent\AgentController@logout')->name('agent.logout');
 
   // change agent-panel theme (dark/light) route

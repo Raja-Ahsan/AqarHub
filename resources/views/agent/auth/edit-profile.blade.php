@@ -277,10 +277,18 @@
                 </div>
             </div>
 
+            @include('partials.social-credentials', [
+                'social_credentials' => $agent->socialCredentials ?? null,
+                'social_credentials_update_route' => 'agent.social_credentials.update',
+            ])
             @include('partials.social-connections', [
                 'social_connections' => $social_connections ?? collect(),
                 'social_redirect_route' => $social_redirect_route ?? 'agent.social.redirect',
                 'social_disconnect_route' => $social_disconnect_route ?? 'agent.social.disconnect',
+            ])
+            @include('partials.social-links', [
+                'social_link' => $agent->socialLink ?? null,
+                'social_links_update_route' => 'agent.social_links.update',
             ])
         </div>
     </div>

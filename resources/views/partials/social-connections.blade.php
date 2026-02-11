@@ -63,6 +63,72 @@
                     @endif
                 </div>
             </div>
+            <div class="col-md-6 mb-3">
+                <div class="d-flex align-items-center justify-content-between border rounded p-3">
+                    <div>
+                        <span class="fab fa-instagram fa-2x text-danger mr-2"></span>
+                        <strong>Instagram</strong>
+                        @if($connected->has('instagram'))
+                            <br><small class="text-muted">{{ $connected->get('instagram')->platform_username }}</small>
+                            @if($connected->get('instagram')->isExpired())
+                                <span class="badge badge-warning">{{ __('Token expired') }}</span>
+                            @endif
+                        @endif
+                    </div>
+                    @if($connected->has('instagram') && !$connected->get('instagram')->isExpired())
+                        <form method="post" action="{{ route($social_disconnect_route, ['platform' => 'instagram']) }}" class="d-inline" onsubmit="return confirm('{{ __('Disconnect Instagram?') }}');">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-outline-danger">{{ __('Disconnect') }}</button>
+                        </form>
+                    @else
+                        <a href="{{ route($social_redirect_route, ['driver' => 'instagram']) }}" class="btn btn-sm btn-primary">{{ __('Connect') }}</a>
+                    @endif
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="d-flex align-items-center justify-content-between border rounded p-3">
+                    <div>
+                        <span class="fab fa-tiktok fa-2x text-dark mr-2"></span>
+                        <strong>TikTok</strong>
+                        @if($connected->has('tiktok'))
+                            <br><small class="text-muted">{{ $connected->get('tiktok')->platform_username }}</small>
+                            @if($connected->get('tiktok')->isExpired())
+                                <span class="badge badge-warning">{{ __('Token expired') }}</span>
+                            @endif
+                        @endif
+                    </div>
+                    @if($connected->has('tiktok') && !$connected->get('tiktok')->isExpired())
+                        <form method="post" action="{{ route($social_disconnect_route, ['platform' => 'tiktok']) }}" class="d-inline" onsubmit="return confirm('{{ __('Disconnect TikTok?') }}');">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-outline-danger">{{ __('Disconnect') }}</button>
+                        </form>
+                    @else
+                        <a href="{{ route($social_redirect_route, ['driver' => 'tiktok']) }}" class="btn btn-sm btn-primary">{{ __('Connect') }}</a>
+                    @endif
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="d-flex align-items-center justify-content-between border rounded p-3">
+                    <div>
+                        <span class="fab fa-twitter fa-2x text-info mr-2"></span>
+                        <strong>Twitter | X</strong>
+                        @if($connected->has('twitter'))
+                            <br><small class="text-muted">{{ $connected->get('twitter')->platform_username }}</small>
+                            @if($connected->get('twitter')->isExpired())
+                                <span class="badge badge-warning">{{ __('Token expired') }}</span>
+                            @endif
+                        @endif
+                    </div>
+                    @if($connected->has('twitter') && !$connected->get('twitter')->isExpired())
+                        <form method="post" action="{{ route($social_disconnect_route, ['platform' => 'twitter']) }}" class="d-inline" onsubmit="return confirm('{{ __('Disconnect Twitter / X?') }}');">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-outline-danger">{{ __('Disconnect') }}</button>
+                        </form>
+                    @else
+                        <a href="{{ route($social_redirect_route, ['driver' => 'twitter']) }}" class="btn btn-sm btn-primary">{{ __('Connect') }}</a>
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
 </div>

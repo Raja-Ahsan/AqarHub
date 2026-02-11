@@ -924,6 +924,7 @@ class AiAssistantController extends Controller
             'facebook' => $result['facebook'] ?? '',
             'instagram' => $result['instagram'] ?? '',
             'linkedin' => $result['linkedin'] ?? '',
+            'twitter' => $result['twitter'] ?? '',
             'hashtags' => $result['hashtags'] ?? '',
         ]);
     }
@@ -938,8 +939,10 @@ class AiAssistantController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'platform' => 'required|string|in:facebook,linkedin',
+            'platform' => 'required|string|in:facebook,linkedin,instagram,twitter',
             'text' => 'required|string|max:10000',
+            'image_url' => 'nullable|string|url|max:2000',
+            'hashtags' => 'nullable|string|max:1000',
         ]);
         if ($validator->fails()) {
             return response()->json(['success' => false, 'error' => $validator->errors()->first()], 422);
@@ -959,9 +962,19 @@ class AiAssistantController extends Controller
             return response()->json(['success' => false, 'error' => __(':platform is not connected or token expired. Connect it in Settings.', ['platform' => ucfirst($request->platform)])], 400);
         }
 
-        $result = $request->platform === 'facebook'
-            ? $this->socialPostingService->postToFacebook($connection, $request->text)
-            : $this->socialPostingService->postToLinkedIn($connection, $request->text);
+        $text = $request->text;
+        if ($request->filled('hashtags') && trim($request->hashtags) !== '') {
+            $text = trim($text) . ' ' . trim($request->hashtags);
+        }
+        $imageUrl = $request->input('image_url', '');
+
+        $result = match ($request->platform) {
+            'facebook' => $this->socialPostingService->postToFacebook($connection, $text, $imageUrl),
+            'linkedin' => $this->socialPostingService->postToLinkedIn($connection, $text),
+            'instagram' => $this->socialPostingService->postToInstagram($connection, $text, $imageUrl),
+            'twitter' => $this->socialPostingService->postToTwitter($connection, $text),
+            default => ['success' => false, 'error' => 'Unsupported platform.'],
+        };
 
         if (! $result['success']) {
             return response()->json(['success' => false, 'error' => $result['error'] ?? 'Post failed.'], 400);

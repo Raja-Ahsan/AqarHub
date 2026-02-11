@@ -30,9 +30,11 @@ Route::prefix('vendor')->middleware('auth:vendor', 'Deactive')->group(function (
   Route::post('/update-password', 'Vendor\VendorController@updated_password')->name('vendor.update_password');
   Route::get('/edit-profile', 'Vendor\VendorController@edit_profile')->name('vendor.edit.profile');
   Route::post('/profile/update', 'Vendor\VendorController@update_profile')->name('vendor.update_profile');
-  Route::get('/social-connections/redirect/{driver}', 'FrontEnd\SocialConnectionController@redirectToProvider')->name('vendor.social.redirect')->where('driver', 'facebook|linkedin');
-  Route::post('/social-connections/disconnect/{platform}', 'FrontEnd\SocialConnectionController@disconnect')->name('vendor.social.disconnect')->where('platform', 'facebook|linkedin');
+  Route::get('/social-connections/redirect/{driver}', 'FrontEnd\SocialConnectionController@redirectToProvider')->name('vendor.social.redirect')->where('driver', 'facebook|linkedin|instagram|tiktok|twitter');
+  Route::post('/social-connections/disconnect/{platform}', 'FrontEnd\SocialConnectionController@disconnect')->name('vendor.social.disconnect')->where('platform', 'facebook|linkedin|instagram|tiktok|twitter');
   Route::get('/social-connections/list', 'FrontEnd\SocialConnectionController@listConnections')->name('vendor.social.list');
+  Route::post('/social-links', 'FrontEnd\SocialConnectionController@updateSocialLinks')->name('vendor.social_links.update');
+  Route::post('/social-credentials', 'FrontEnd\SocialConnectionController@updateSocialCredentials')->name('vendor.social_credentials.update');
   Route::get('/logout', 'Vendor\VendorController@logout')->name('vendor.logout');
 
   // change admin-panel theme (dark/light) route
