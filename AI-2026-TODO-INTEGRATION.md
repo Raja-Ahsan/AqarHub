@@ -28,8 +28,8 @@
 |---|----|---------|-------|------|
 | 5 | **B-1** | **Social / ad copy from listing** | Vendor/Admin property edit: "Generate social copy" → Facebook/Instagram/LinkedIn post + hashtags. `AiAssistantService::generateSocialCopy()`. | ☑ |
 | 6 | **B-2** | **Bulk "Generate description" for existing listings** | Vendor/Admin property list: select multiple → "Generate descriptions with AI" (queue job). Throttle API; only for accounts with `has_ai_features`. | ☑ |
-| 7 | **B-3** | **AI-suggested listing price** | Vendor/Admin property form: "Suggest price" (address + specs) → AI returns range + short justification (clearly "suggestion only"). Use comparables from DB where available. | ☐ |
-| 8 | **A2** | **Smart email campaigns for agents/vendors** | Select leads by intent/property → "Send update (e.g. price drop)" → AI generates personalized email variants → queue send. Respect opt-out / GDPR/CAN-SPAM; store consent. | ☐ |
+| 7 | **B-3** | **AI-suggested listing price** | Vendor/Admin property form: "Suggest price" (address + specs) → AI returns range + short justification (clearly "suggestion only"). Use comparables from DB where available. | ☑ |
+| 8 | **A2** | **Smart email campaigns for agents/vendors** | Select leads by intent/property → "Send update (e.g. price drop)" → AI generates personalized email variants → queue send. Respect opt-out / GDPR/CAN-SPAM; store consent. | ☑ |
 | 9 | **A6** | **AI video scripts for listings** | Vendor/Admin: "Generate video script" (TikTok/YouTube/Reels) – 30–60 sec hook, transitions, CTA with timestamps. New method + button on property. | ☐ |
 
 ---
@@ -108,8 +108,8 @@ Phase A:
 Phase B:
 [x] 5. B-1   Social / ad copy from listing
 [x] 6. B-2   Bulk generate description (queue)
-[ ] 7. B-3   AI-suggested listing price
-[ ] 8. A2    Smart email campaigns
+[x] 7. B-3   AI-suggested listing price
+[x] 8. A2    Smart email campaigns
 [ ] 9. A6    AI video scripts for listings
 
 Phase C:
@@ -158,6 +158,8 @@ Use this section to record completion and self-test. Only add an entry when the 
 | A-8 | 2026-02-03 | PropertyAnomalyService::detect() runs in DetectPropertyAnomaliesJob on property store/update (vendor + admin). Checks: required fields (title, address, description, price), description length (min 25 words), price vs similar (city/type). Stored: anomaly_checked_at, anomaly_review_suggested, anomaly_flags (JSON). Vendor & Admin property list: "Review" column with "Review suggested" badge; edit page: warning panel with list of anomaly messages. |
 | B-1 | 2026-02-03 | AiAssistantService::generateSocialCopy(); POST /ai-assistant/generate-social-copy (vendor/admin, property_id). Vendor & Admin property edit: "Generate social copy" button opens modal with Facebook, Instagram, LinkedIn, Hashtags textareas + Copy buttons. Vendor requires has_ai_features. |
 | B-2 | 2026-02-03 | BulkGenerateDescriptionJob per property; POST /ai-assistant/bulk-generate-description (property_ids). Vendor/Admin property list: "Generate descriptions with AI" button when rows selected; jobs dispatched with 15s delay to throttle API; vendor requires has_ai_features. Default-language description/meta updated. |
+| B-3 | 2026-02-03 | AiAssistantService::suggestPrice($address, $specs, $comparables); POST /ai-assistant/suggest-price (vendor/admin, property_id or address+specs). Backend & Vendor property edit: "Suggest price" button near price field; API loads property address/specs and comparables (same city+type, limit 10), returns price_low, price_high, justification, disclaimer; UI shows range + justification + disclaimer and optionally pre-fills price with midpoint. Vendor requires has_ai_features. |
+| A2 | 2026-02-03 | Smart email campaigns: AiAssistantService::generateCampaignEmail(); POST /ai-assistant/send-campaign (vendor/agent, lead_ids, campaign_type, property_id). Unsubscribe: unsubscribed_at + unsubscribe_token on property_contacts; token set on contact create; GET /unsubscribe/campaign/{token}. SendCampaignEmailJob per lead (throttled); campaign-update email template with unsubscribe link. Vendor Property Messages & Agent Property Messages: checkboxes, "Send update" button, modal (type: price_drop/new_listing/general_update, optional property); vendor requires has_ai_features. |
 | | | |
 | | | |
 

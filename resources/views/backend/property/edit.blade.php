@@ -330,6 +330,16 @@
                                             <label>{{ __('Price') . ' (' . $settings->base_currency_text . ')' }} </label>
                                             <input type="number" class="form-control" name="price"
                                                 placeholder="Enter Current Price" value="{{ $property->price }}">
+                                            @if(config('ai.enabled'))
+                                            <button type="button" class="btn btn-sm btn-outline-primary mt-1 ai-suggest-price-btn" data-property-id="{{ $property->id }}">
+                                                {{ __('Suggest price') }}
+                                            </button>
+                                            <div id="ai-suggest-price-box" class="mt-2 p-2 small border rounded bg-light" style="display:none;">
+                                                <div class="ai-suggest-price-range font-weight-bold"></div>
+                                                <div class="ai-suggest-price-justification text-muted mt-1"></div>
+                                                <p class="ai-suggest-price-disclaimer text-warning mb-0 mt-1 small"></p>
+                                            </div>
+                                            @endif
                                             <p class="text-warning">
                                                 {{ __('If you leave it blank, price will be negotiable.') }}
                                             </p>
@@ -860,6 +870,7 @@
     var aiAnalyzeUrl = '{{ route("ai.assistant.analyze_image") }}';
     var aiTranslateUrl = '{{ route("ai.assistant.translate") }}';
     var aiCheckComplianceUrl = '{{ route("ai.assistant.check_compliance") }}';
+    var aiSuggestPriceUrl = '{{ route("ai.assistant.suggest_price") }}';
     var aiCsrf = '{{ csrf_token() }}';
     function setEditorContent(editorId, content) {
         if (typeof tinymce !== 'undefined') {
@@ -1084,6 +1095,49 @@
                     resultEl.style.display = 'block';
                     resultEl.className = 'ai-compliance-result mb-2 alert alert-danger';
                     resultEl.innerHTML = '{{ __("Request failed.") }}';
+                });
+            });
+        });
+        document.querySelectorAll('.ai-suggest-price-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var propertyId = this.getAttribute('data-property-id');
+                var box = document.getElementById('ai-suggest-price-box');
+                var rangeEl = box ? box.querySelector('.ai-suggest-price-range') : null;
+                var justEl = box ? box.querySelector('.ai-suggest-price-justification') : null;
+                var discEl = box ? box.querySelector('.ai-suggest-price-disclaimer') : null;
+                if (!box || !rangeEl) return;
+                box.style.display = 'none';
+                rangeEl.textContent = '{{ __("Loading...") }}';
+                justEl.textContent = '';
+                if (discEl) discEl.textContent = '';
+                btn.disabled = true;
+                var payload = {};
+                if (propertyId) payload.property_id = parseInt(propertyId, 10);
+                fetch(aiSuggestPriceUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': aiCsrf, 'Accept': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).then(function(r) { return r.json(); }).then(function(data) {
+                    btn.disabled = false;
+                    box.style.display = 'block';
+                    if (!data.success) {
+                        rangeEl.textContent = data.error || '{{ __("Could not get suggestion.") }}';
+                        return;
+                    }
+                    var low = data.price_low != null ? Number(data.price_low) : null;
+                    var high = data.price_high != null ? Number(data.price_high) : null;
+                    var mid = (low != null && high != null && !isNaN(low) && !isNaN(high)) ? Math.round((low + high) / 2) : null;
+                    rangeEl.textContent = (low != null && high != null) ? (low.toLocaleString() + ' – ' + high.toLocaleString()) : (data.price_low + ' – ' + data.price_high);
+                    justEl.textContent = data.justification || '';
+                    if (discEl) discEl.textContent = data.disclaimer || '{{ __("This is a suggestion only; final price is at your discretion.") }}';
+                    if (mid != null) {
+                        var priceInput = document.querySelector('input[name="price"]');
+                        if (priceInput && (!priceInput.value || priceInput.value.trim() === '')) priceInput.value = mid;
+                    }
+                }).catch(function() {
+                    btn.disabled = false;
+                    box.style.display = 'block';
+                    rangeEl.textContent = '{{ __("Request failed.") }}';
                 });
             });
         });

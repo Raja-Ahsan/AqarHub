@@ -65,6 +65,18 @@ Route::post('/ai-assistant/post-to-social', 'FrontEnd\AiAssistantController@post
   ->name('ai.assistant.post_to_social')
   ->middleware('throttle:20,1');
 
+Route::post('/ai-assistant/suggest-price', 'FrontEnd\AiAssistantController@suggestPrice')
+  ->name('ai.assistant.suggest_price')
+  ->middleware('throttle:10,1');
+
+Route::post('/ai-assistant/send-campaign', 'FrontEnd\AiAssistantController@sendCampaign')
+  ->name('ai.assistant.send_campaign')
+  ->middleware('throttle:6,1');
+
+Route::get('/unsubscribe/campaign/{token}', 'FrontEnd\PropertyController@unsubscribeCampaign')
+  ->name('unsubscribe.campaign')
+  ->where('token', '[a-zA-Z0-9]+');
+
 Route::get('/auth/social/callback/{driver}', 'FrontEnd\SocialConnectionController@handleProviderCallback')
   ->name('social.callback')
   ->where('driver', 'facebook|linkedin|instagram|tiktok|twitter');

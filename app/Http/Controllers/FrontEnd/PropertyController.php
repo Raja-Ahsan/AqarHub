@@ -460,7 +460,7 @@ class PropertyController extends Controller
         }
 
         try {
-            PropertyContact::create([
+            $contactAttrs = [
                 'vendor_id' => $request->vendor_id,
                 'agent_id' => $request->agent_id,
                 'property_id' => $request->property_id,
@@ -468,8 +468,11 @@ class PropertyController extends Controller
                 'email' => $request->email,
                 'phone' => $request->phone,
                 'message' => $request->message,
-
-            ]);
+            ];
+            if (\Illuminate\Support\Facades\Schema::hasColumn('property_contacts', 'unsubscribe_token')) {
+                $contactAttrs['unsubscribe_token'] = \Illuminate\Support\Str::random(64);
+            }
+            PropertyContact::create($contactAttrs);
             $this->sendMail($request);
         } catch (\Exception $e) {
             return back()->with('error', 'Something went wrong!');
@@ -543,6 +546,9 @@ class PropertyController extends Controller
                     $contactData['intent'] = $classify['intent'] ?? null;
                     $contactData['lead_score'] = $classify['lead_score'] ?? null;
                 }
+            }
+            if (Schema::hasColumn('property_contacts', 'unsubscribe_token')) {
+                $contactData['unsubscribe_token'] = \Illuminate\Support\Str::random(64);
             }
             PropertyContact::create($contactData);
             $this->sendMail($request);
@@ -705,5 +711,22 @@ class PropertyController extends Controller
         }
 
         return Response::json(['categories' => $categories], 200);
+    }
+
+    /**
+     * Unsubscribe from campaign emails (A2). Link in campaign email footer.
+     */
+    public function unsubscribeCampaign(string $token)
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('property_contacts') || ! \Illuminate\Support\Facades\Schema::hasColumn('property_contacts', 'unsubscribed_at')) {
+            return view('frontend.unsubscribe-campaign', ['success' => false, 'message' => __('Unsubscribe is not available.')]);
+        }
+        $contact = PropertyContact::where('unsubscribe_token', $token)->first();
+        if (! $contact) {
+            return view('frontend.unsubscribe-campaign', ['success' => false, 'message' => __('Invalid or expired link.')]);
+        }
+        $contact->unsubscribed_at = now();
+        $contact->save();
+        return view('frontend.unsubscribe-campaign', ['success' => true, 'message' => __('You have been unsubscribed from property update emails.')]);
     }
 }

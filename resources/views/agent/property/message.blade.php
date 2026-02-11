@@ -46,6 +46,12 @@
                                     </select>
                                 </form>
                             @endif
+                            @if (!empty($showCampaignUi))
+                                <div class="mb-3">
+                                    <button type="button" class="btn btn-primary btn-sm" id="sendCampaignOpenBtn" disabled>{{ __('Send update (e.g. price drop)') }}</button>
+                                    <span class="ml-2 text-muted small" id="campaignSelectedCount">0 {{ __('selected') }}</span>
+                                </div>
+                            @endif
                             @if (count($messages) == 0)
                                 <h3 class="text-center mt-2">{{ __('NO MESSAGE FOUND') . '!' }}</h3>
                             @else
@@ -53,6 +59,9 @@
                                     <table class="table table-striped mt-3" id="basic-datatables">
                                         <thead>
                                             <tr>
+                                                @if (!empty($showCampaignUi))
+                                                    <th scope="col"><input type="checkbox" id="campaignSelectAll" title="{{ __('Select all') }}"></th>
+                                                @endif
                                                 <th scope="col">#</th>
                                                 <th scope="col">{{ __('Property') }}</th>
                                                 <th scope="col">{{ __('Name') }}</th>
@@ -71,6 +80,15 @@
                                         <tbody>
                                             @foreach ($messages as $message)
                                                 <tr>
+                                                    @if (!empty($showCampaignUi))
+                                                        <td>
+                                                            @if(empty($message->unsubscribed_at ?? null))
+                                                                <input type="checkbox" class="campaign-lead-cb" value="{{ $message->id }}" data-email="{{ $message->email }}">
+                                                            @else
+                                                                <span class="text-muted" title="{{ __('Unsubscribed') }}">—</span>
+                                                            @endif
+                                                        </td>
+                                                    @endif
                                                     <td>{{ $loop->iteration }}</td>
                                                     <td class="table-title">
                                                         @php
@@ -172,9 +190,107 @@
     </div>
 
     @include('agent.property.message-view')
+
+    @if (!empty($showCampaignUi))
+    <div class="modal fade" id="sendCampaignModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ __('Send update to leads') }}</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>{{ __('Update type') }}</label>
+                        <select class="form-control" id="campaignType">
+                            <option value="price_drop">{{ __('Price drop') }}</option>
+                            <option value="new_listing">{{ __('New listing') }}</option>
+                            <option value="general_update">{{ __('General update') }}</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>{{ __('Property (optional)') }}</label>
+                        <select class="form-control" id="campaignPropertyId">
+                            <option value="">{{ __('— None / general —') }}</option>
+                            @foreach ($agentProperties ?? [] as $p)
+                                @php $cont = $p->propertyContents->first(); @endphp
+                                <option value="{{ $p->id }}">{{ $cont ? \Illuminate\Support\Str::limit($cont->title, 50) : __('Property') }} #{{ $p->id }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <p class="text-muted small mb-0">{{ __('AI will generate a personalized email per lead. Emails are queued and sent shortly. Unsubscribed leads are excluded.') }}</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('Cancel') }}</button>
+                    <button type="button" class="btn btn-primary" id="sendCampaignSubmitBtn">{{ __('Send to selected leads') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
 @endsection
 
 @section('script')
+@if (!empty($showCampaignUi))
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var campaignSelectAll = document.getElementById('campaignSelectAll');
+    var campaignLeadCbs = document.querySelectorAll('.campaign-lead-cb');
+    var campaignSelectedCount = document.getElementById('campaignSelectedCount');
+    var sendCampaignOpenBtn = document.getElementById('sendCampaignOpenBtn');
+    function updateCampaignSelection() {
+        var n = document.querySelectorAll('.campaign-lead-cb:checked').length;
+        if (campaignSelectedCount) campaignSelectedCount.textContent = n + ' {{ __("selected") }}';
+        if (sendCampaignOpenBtn) sendCampaignOpenBtn.disabled = n === 0;
+        if (campaignSelectAll) campaignSelectAll.checked = n > 0 && n === campaignLeadCbs.length;
+    }
+    if (campaignSelectAll) {
+        campaignSelectAll.addEventListener('change', function() {
+            campaignLeadCbs.forEach(function(cb) { cb.checked = campaignSelectAll.checked; });
+            updateCampaignSelection();
+        });
+    }
+    campaignLeadCbs.forEach(function(cb) {
+        cb.addEventListener('change', updateCampaignSelection);
+    });
+    if (sendCampaignOpenBtn) {
+        sendCampaignOpenBtn.addEventListener('click', function() {
+            $('#sendCampaignModal').modal('show');
+        });
+    }
+    var sendCampaignSubmitBtn = document.getElementById('sendCampaignSubmitBtn');
+    if (sendCampaignSubmitBtn) {
+        sendCampaignSubmitBtn.addEventListener('click', function() {
+            var ids = [];
+            document.querySelectorAll('.campaign-lead-cb:checked').forEach(function(cb) { ids.push(parseInt(cb.value, 10)); });
+            if (ids.length === 0) return;
+            var campaignType = (document.getElementById('campaignType') || {}).value || 'general_update';
+            var propertyIdEl = document.getElementById('campaignPropertyId');
+            var propertyId = propertyIdEl && propertyIdEl.value ? parseInt(propertyIdEl.value, 10) : null;
+            sendCampaignSubmitBtn.disabled = true;
+            fetch('{{ route("ai.assistant.send_campaign") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'), 'Accept': 'application/json' },
+                body: JSON.stringify({ lead_ids: ids, campaign_type: campaignType, property_id: propertyId || undefined })
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                sendCampaignSubmitBtn.disabled = false;
+                if (data.success) {
+                    $('#sendCampaignModal').modal('hide');
+                    if (typeof $.notify === 'function') $.notify({ message: data.message || '{{ __("Campaign queued.") }}', title: '', icon: 'fa fa-check' }, { type: 'success' });
+                    document.querySelectorAll('.campaign-lead-cb:checked').forEach(function(cb) { cb.checked = false; });
+                    updateCampaignSelection();
+                } else {
+                    if (typeof $.notify === 'function') $.notify({ message: data.error || '{{ __("Failed.") }}', title: '', icon: 'fa fa-exclamation' }, { type: 'warning' });
+                }
+            }).catch(function() {
+                sendCampaignSubmitBtn.disabled = false;
+                if (typeof $.notify === 'function') $.notify({ message: '{{ __("Request failed.") }}', title: '', icon: 'fa fa-exclamation' }, { type: 'danger' });
+            });
+        });
+    }
+});
+</script>
+@endif
 @if (config('ai.enabled', false))
 <script>
 document.addEventListener('DOMContentLoaded', function() {

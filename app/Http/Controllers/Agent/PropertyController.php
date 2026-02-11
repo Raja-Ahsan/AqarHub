@@ -459,7 +459,21 @@ class PropertyController extends Controller
                 ->groupBy('intent')->pluck('cnt', 'intent')->toArray();
         }
         $showReplySentColumn = Schema::hasColumn('property_contacts', 'reply_email_sent');
-        return view('agent.property.message', compact('messages', 'intentCounts', 'showReplySentColumn'));
+        $showCampaignUi = config('ai.enabled', false);
+        $agentProperties = [];
+        if ($showCampaignUi) {
+            $defaultLang = Language::where('is_default', 1)->first();
+            $agentProperties = Property::where('agent_id', Auth::guard('agent')->user()->id)
+                ->with(['propertyContents' => function ($q) use ($defaultLang) {
+                    if ($defaultLang) {
+                        $q->where('language_id', $defaultLang->id);
+                    }
+                }])
+                ->orderByDesc('created_at')
+                ->limit(100)
+                ->get();
+        }
+        return view('agent.property.message', compact('messages', 'intentCounts', 'showReplySentColumn', 'showCampaignUi', 'agentProperties'));
     }
     public function destroyMessage(Request $request)
     {

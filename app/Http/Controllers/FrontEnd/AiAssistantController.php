@@ -9,11 +9,14 @@ use App\Models\Agent;
 use App\Models\AgentInfo;
 use App\Models\Property\City;
 use App\Models\Property\CityContent;
+use App\Models\Language;
 use App\Models\Property\Content as PropertyContent;
 use App\Models\Property\CountryContent;
 use App\Models\Property\Property;
+use App\Models\Property\PropertyContact;
 use App\Models\Property\StateContent;
 use App\Jobs\BulkGenerateDescriptionJob;
+use App\Jobs\SendCampaignEmailJob;
 use App\Models\Admin;
 use App\Models\SocialConnection;
 use App\Models\Vendor;
@@ -1052,6 +1055,204 @@ class AiAssistantController extends Controller
             'success' => true,
             'message' => __('Queued :count property(ies) for description generation. They will be processed in the background.', ['count' => count($ids)]),
             'queued_count' => count($ids),
+        ]);
+    }
+
+    /**
+     * AI-suggested listing price (B-3). Vendor or admin only; uses address + specs and optional comparables from DB.
+     */
+    public function suggestPrice(Request $request): JsonResponse
+    {
+        if (! Auth::guard('vendor')->check() && ! Auth::guard('admin')->check()) {
+            return response()->json(['success' => false, 'error' => 'Unauthorized.'], 401);
+        }
+        if (Auth::guard('vendor')->check() && ! $this->vendorPackageHasAi()) {
+            return response()->json(['success' => false, 'error' => 'Your package does not include AI features.'], 403);
+        }
+        if (! $this->aiService->isAvailable()) {
+            return response()->json(['success' => false, 'error' => 'AI assistant is not available.'], 503);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'property_id' => 'nullable|integer|exists:properties,id',
+            'address' => 'nullable|string|max:1000',
+            'type' => 'nullable|string|max:100',
+            'purpose' => 'nullable|string|max:100',
+            'beds' => 'nullable|string|max:20',
+            'bath' => 'nullable|string|max:20',
+            'area' => 'nullable|string|max:50',
+            'city_name' => 'nullable|string|max:200',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'error' => $validator->errors()->first()], 422);
+        }
+
+        $address = '';
+        $specs = [];
+        $comparables = [];
+        $propertyId = $request->input('property_id');
+
+        if ($propertyId) {
+            $property = Property::with(['propertyContents', 'city'])->find($propertyId);
+            if (! $property) {
+                return response()->json(['success' => false, 'error' => 'Property not found.'], 404);
+            }
+            if (Auth::guard('vendor')->check() && ! Auth::guard('admin')->check() && (int) $property->vendor_id !== (int) Auth::guard('vendor')->id()) {
+                return response()->json(['success' => false, 'error' => 'Access denied.'], 403);
+            }
+            $defaultLang = Language::where('is_default', 1)->first();
+            $content = $defaultLang
+                ? $property->propertyContents->where('language_id', $defaultLang->id)->first()
+                : $property->propertyContents->first();
+            $address = $content && trim((string) $content->address) !== '' ? trim($content->address) : '';
+            $specs = array_filter([
+                'type' => $property->type,
+                'purpose' => $property->purpose,
+                'beds' => $property->beds,
+                'bath' => $property->bath,
+                'area' => $property->area,
+                'city_name' => $property->city_id && $defaultLang
+                ? (CityContent::where('city_id', $property->city_id)->where('language_id', $defaultLang->id)->value('name'))
+                : null,
+            ]);
+            if ($property->city_id) {
+                $comparableQuery = Property::with(['propertyContents' => function ($q) use ($defaultLang) {
+                    if ($defaultLang) {
+                        $q->where('language_id', $defaultLang->id);
+                    }
+                }, 'city'])
+                    ->where('city_id', $property->city_id)
+                    ->where('id', '!=', $property->id)
+                    ->whereNotNull('price')
+                    ->where('price', '>', 0)
+                    ->limit(10)
+                    ->orderByDesc('created_at');
+                if ($property->type) {
+                    $comparableQuery->where('type', $property->type);
+                }
+                $comps = $comparableQuery->get();
+                foreach ($comps as $c) {
+                    $cont = $c->propertyContents->first();
+                    $comparables[] = [
+                        'price' => $c->price,
+                        'beds' => $c->beds,
+                        'area' => $c->area,
+                        'address' => $cont ? trim((string) $cont->address) : '',
+                    ];
+                }
+            }
+        } else {
+            $address = trim((string) $request->input('address', ''));
+            $specs = array_filter([
+                'type' => $request->input('type'),
+                'purpose' => $request->input('purpose'),
+                'beds' => $request->input('beds'),
+                'bath' => $request->input('bath'),
+                'area' => $request->input('area'),
+                'city_name' => $request->input('city_name'),
+            ]);
+        }
+
+        if ($address === '' && empty($specs)) {
+            return response()->json(['success' => false, 'error' => __('Provide an address or property details (e.g. type, beds, area, city).')], 422);
+        }
+
+        $result = $this->aiService->suggestPrice($address, $specs, $comparables);
+        if (! $result['success']) {
+            return response()->json(['success' => false, 'error' => $result['error'] ?? 'Could not get suggestion.'], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'price_low' => $result['price_low'],
+            'price_high' => $result['price_high'],
+            'justification' => $result['justification'] ?? '',
+            'disclaimer' => $result['disclaimer'] ?? __('This is a suggestion only; final price is at your discretion.'),
+        ]);
+    }
+
+    /**
+     * A2 Smart email campaigns: send AI-generated update (e.g. price drop) to selected leads. Vendor or Agent only; vendor must have has_ai_features.
+     */
+    public function sendCampaign(Request $request): JsonResponse
+    {
+        if (! Auth::guard('vendor')->check() && ! Auth::guard('agent')->check()) {
+            return response()->json(['success' => false, 'error' => 'Unauthorized.'], 401);
+        }
+        if (Auth::guard('vendor')->check() && ! $this->vendorPackageHasAi()) {
+            return response()->json(['success' => false, 'error' => 'Your package does not include AI features.'], 403);
+        }
+        if (! $this->aiService->isAvailable()) {
+            return response()->json(['success' => false, 'error' => 'AI assistant is not available.'], 503);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'lead_ids' => 'required|array',
+            'lead_ids.*' => 'integer|exists:property_contacts,id',
+            'campaign_type' => 'required|string|in:price_drop,new_listing,general_update',
+            'property_id' => 'nullable|integer|exists:properties,id',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'error' => $validator->errors()->first()], 422);
+        }
+
+        $leadIds = array_values(array_unique(array_map('intval', $request->lead_ids)));
+        $propertyId = $request->input('property_id') ? (int) $request->input('property_id') : null;
+
+        $query = PropertyContact::whereIn('id', $leadIds)->whereNotNull('email')->where('email', '!=', '');
+        if (Schema::hasColumn('property_contacts', 'unsubscribed_at')) {
+            $query->whereNull('unsubscribed_at');
+        }
+        if (Auth::guard('vendor')->check()) {
+            $query->where('vendor_id', Auth::guard('vendor')->id());
+        } elseif (Auth::guard('agent')->check()) {
+            $query->where('agent_id', Auth::guard('agent')->id());
+        } else {
+            return response()->json(['success' => false, 'error' => 'Unauthorized.'], 401);
+        }
+        $contacts = $query->get();
+        if ($contacts->isEmpty()) {
+            return response()->json(['success' => false, 'error' => __('No valid leads selected or they have unsubscribed.')], 422);
+        }
+
+        if ($propertyId) {
+            $property = Property::find($propertyId);
+            if ($property && Auth::guard('vendor')->check() && (int) $property->vendor_id !== (int) Auth::guard('vendor')->id()) {
+                return response()->json(['success' => false, 'error' => 'Access denied to that property.'], 403);
+            }
+            if ($property && Auth::guard('agent')->check() && (int) $property->agent_id !== (int) Auth::guard('agent')->id()) {
+                return response()->json(['success' => false, 'error' => 'Access denied to that property.'], 403);
+            }
+        }
+
+        $defaultLang = Language::where('is_default', 1)->first();
+        $langId = $defaultLang ? $defaultLang->id : null;
+        $senderName = __('Real Estate');
+        if (Auth::guard('vendor')->check()) {
+            $vendorInfo = $langId ? VendorInfo::where('vendor_id', Auth::guard('vendor')->id())->where('language_id', $langId)->first() : null;
+            $senderName = ($vendorInfo && trim($vendorInfo->name ?? '') !== '') ? trim($vendorInfo->name) : (Auth::guard('vendor')->user()->username ?? 'Vendor');
+        } elseif (Auth::guard('agent')->check()) {
+            $agentInfo = $langId ? AgentInfo::where('agent_id', Auth::guard('agent')->id())->where('language_id', $langId)->first() : null;
+            $senderName = ($agentInfo && trim($agentInfo->name ?? '') !== '') ? trim($agentInfo->name) : (Auth::guard('agent')->user()->username ?? 'Agent');
+        }
+        $basic = \App\Models\BasicSettings\Basic::where('uniqid', 12345)->value('website_title');
+        $websiteTitle = $basic ?: config('app.name');
+
+        $delaySeconds = 5;
+        foreach ($contacts as $index => $contact) {
+            SendCampaignEmailJob::dispatch(
+                $contact->id,
+                $request->campaign_type,
+                $propertyId,
+                $senderName,
+                $websiteTitle
+            )->delay(now()->addSeconds($index * $delaySeconds));
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => __('Campaign emails are being sent to :count lead(s). They will receive personalized updates shortly.', ['count' => $contacts->count()]),
+            'queued_count' => $contacts->count(),
         ]);
     }
 

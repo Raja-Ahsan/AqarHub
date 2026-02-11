@@ -673,4 +673,193 @@ class AiAssistantService
             return ['success' => false, 'error' => 'Could not generate social copy.'];
         }
     }
+
+    /**
+     * AI-suggested listing price range (B-3). Uses address + specs; optional comparables from DB.
+     *
+     * @param  string  $address  Property address or location
+     * @param  array  $specs  type, purpose, beds, bath, area, city_name, etc.
+     * @param  array  $comparables  Optional list of ['price' => x, 'beds' => ?, 'area' => ?, 'address' => ?]
+     * @return array{ success: bool, price_low?: float, price_high?: float, justification?: string, disclaimer?: string, error?: string }
+     */
+    public function suggestPrice(string $address, array $specs = [], array $comparables = []): array
+    {
+        if (empty($this->apiKey)) {
+            return ['success' => false, 'error' => 'AI is not configured.'];
+        }
+
+        $address = $this->sanitizeMessage($address);
+        if (mb_strlen($address) > 1000) {
+            $address = mb_substr($address, 0, 1000);
+        }
+
+        $systemPrompt = 'You are a real estate pricing advisor. Given a property address and optional specs (type, purpose, beds, bath, area, city/location), and optionally recent comparable listings with their prices, suggest a reasonable listing price range. '
+            . 'Reply with a JSON object only, no markdown or code fences: '
+            . '{"price_low": number, "price_high": number, "justification": "2-4 sentences explaining the range and key factors", "disclaimer": "This is a suggestion only; final listing price is at the discretion of the seller and you should verify with a local appraisal or agent."}. '
+            . 'Use numeric values for price_low and price_high (no currency symbols). Be conservative; consider location, size, and comparables if provided.';
+
+        $parts = ["Address or location: " . ($address ?: 'Not specified')];
+        foreach ($specs as $key => $value) {
+            if ($value !== null && trim((string) $value) !== '') {
+                $parts[] = $key . ': ' . trim((string) $value);
+            }
+        }
+        if (! empty($comparables)) {
+            $parts[] = "\nComparable listings (recent):";
+            foreach (array_slice($comparables, 0, 15) as $i => $comp) {
+                $line = '  - Price: ' . ($comp['price'] ?? 'N/A');
+                if (! empty($comp['beds'])) {
+                    $line .= ', Beds: ' . $comp['beds'];
+                }
+                if (! empty($comp['area'])) {
+                    $line .= ', Area: ' . $comp['area'];
+                }
+                if (! empty($comp['address'])) {
+                    $line .= ', ' . $this->sanitizeMessage((string) $comp['address']);
+                }
+                $parts[] = $line;
+            }
+        }
+        $userPrompt = "Suggest a listing price range for this property.\n\n" . implode("\n", $parts);
+
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(25)
+                ->post('https://api.openai.com/v1/chat/completions', [
+                    'model' => $this->model,
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userPrompt],
+                    ],
+                    'max_tokens' => 400,
+                    'temperature' => 0.3,
+                ]);
+
+            if (! $response->successful()) {
+                Log::warning('AI suggestPrice API error', ['body' => $response->body()]);
+                return ['success' => false, 'error' => 'Could not get price suggestion.'];
+            }
+
+            $content = trim($response->json('choices.0.message.content', ''));
+            $content = preg_replace('/^```\w*\s*|\s*```$/m', '', $content);
+            $data = json_decode($content, true);
+            if (! is_array($data)) {
+                return ['success' => false, 'error' => 'Could not parse price suggestion.'];
+            }
+
+            $priceLow = isset($data['price_low']) ? (float) $data['price_low'] : null;
+            $priceHigh = isset($data['price_high']) ? (float) $data['price_high'] : null;
+            if ($priceLow === null && $priceHigh === null) {
+                return ['success' => false, 'error' => 'No price range returned.'];
+            }
+            if ($priceLow === null) {
+                $priceLow = $priceHigh;
+            }
+            if ($priceHigh === null) {
+                $priceHigh = $priceLow;
+            }
+            if ($priceLow > $priceHigh) {
+                [$priceLow, $priceHigh] = [$priceHigh, $priceLow];
+            }
+
+            return [
+                'success' => true,
+                'price_low' => $priceLow,
+                'price_high' => $priceHigh,
+                'justification' => isset($data['justification']) && is_string($data['justification']) ? trim($data['justification']) : '',
+                'disclaimer' => isset($data['disclaimer']) && is_string($data['disclaimer']) ? trim($data['disclaimer']) : 'This is a suggestion only; final price is at your discretion.',
+            ];
+        } catch (\Throwable $e) {
+            Log::error('AI suggestPrice: ' . $e->getMessage());
+            return ['success' => false, 'error' => 'Could not get price suggestion.'];
+        }
+    }
+
+    /**
+     * Generate a personalized campaign email (e.g. price drop, new listing) for leads. A2 Smart email campaigns.
+     *
+     * @param  string  $campaignType  price_drop, new_listing, general_update
+     * @param  array  $context  recipient_name, property_title?, property_url?, intent?, custom_note?
+     * @return array{ success: bool, subject?: string, body?: string, error?: string }
+     */
+    public function generateCampaignEmail(string $campaignType, array $context = []): array
+    {
+        if (empty($this->apiKey)) {
+            return ['success' => false, 'error' => 'AI is not configured.'];
+        }
+
+        $name = $this->sanitizeMessage((string) ($context['recipient_name'] ?? 'Valued prospect'));
+        $propertyTitle = $this->sanitizeMessage((string) ($context['property_title'] ?? ''));
+        $propertyUrl = trim((string) ($context['property_url'] ?? ''));
+        $intent = $this->sanitizeMessage((string) ($context['intent'] ?? ''));
+        $customNote = $this->sanitizeMessage((string) ($context['custom_note'] ?? ''));
+
+        $typeInstructions = match ($campaignType) {
+            'price_drop' => 'The email should announce a price reduction for the property. Be warm and direct; mention the new opportunity.',
+            'new_listing' => 'The email should introduce a new listing that may match their interest. Highlight key features briefly.',
+            'general_update' => 'The email should provide a short update about the property or market. Keep it relevant and professional.',
+            default => 'Write a professional, personalized real estate update email.',
+        };
+
+        $systemPrompt = 'You are a professional real estate assistant writing a personalized email to a lead. '
+            . $typeInstructions . ' '
+            . 'Reply with a JSON object only, no markdown or code fences: '
+            . '{"subject": "Email subject line (short, under 60 chars)", "body": "Plain text email body, 2-4 short paragraphs. Use \\n for new lines. Address the recipient by name. Be concise and professional. Do not include unsubscribe text."}.';
+
+        $parts = ["Recipient name: " . $name];
+        if ($propertyTitle !== '') {
+            $parts[] = "Property: " . $propertyTitle;
+        }
+        if ($propertyUrl !== '') {
+            $parts[] = "Property URL: " . $propertyUrl;
+        }
+        if ($intent !== '') {
+            $parts[] = "Lead intent: " . $intent;
+        }
+        if ($customNote !== '') {
+            $parts[] = "Additional context or note: " . $customNote;
+        }
+        $userPrompt = "Generate one campaign email.\n\n" . implode("\n", $parts);
+
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(25)
+                ->post('https://api.openai.com/v1/chat/completions', [
+                    'model' => $this->model,
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userPrompt],
+                    ],
+                    'max_tokens' => 600,
+                    'temperature' => 0.6,
+                ]);
+
+            if (! $response->successful()) {
+                Log::warning('AI generateCampaignEmail API error', ['body' => $response->body()]);
+                return ['success' => false, 'error' => 'Could not generate email.'];
+            }
+
+            $content = trim($response->json('choices.0.message.content', ''));
+            $content = preg_replace('/^```\w*\s*|\s*```$/m', '', $content);
+            $data = json_decode($content, true);
+            if (! is_array($data)) {
+                return ['success' => false, 'error' => 'Could not parse generated email.'];
+            }
+
+            $subject = isset($data['subject']) && is_string($data['subject']) ? trim($data['subject']) : '';
+            $body = isset($data['body']) && is_string($data['body']) ? trim($data['body']) : '';
+            if ($subject === '' || $body === '') {
+                return ['success' => false, 'error' => 'Missing subject or body in generated email.'];
+            }
+
+            return [
+                'success' => true,
+                'subject' => $subject,
+                'body' => $body,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('AI generateCampaignEmail: ' . $e->getMessage());
+            return ['success' => false, 'error' => 'Could not generate email.'];
+        }
+    }
 }

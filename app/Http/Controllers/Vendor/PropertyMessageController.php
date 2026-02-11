@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\BasicSettings\Basic;
 use App\Models\Language;
 use App\Models\Property\PropertyContact;
+use App\Models\Property\Property;
+use App\Http\Helpers\VendorPermissionHelper;
 use App\Models\VendorInfo;
 use Auth;
 use Config;
@@ -38,7 +40,22 @@ class PropertyMessageController extends Controller
                 ->groupBy('intent')->pluck('cnt', 'intent')->toArray();
         }
         $showReplySentColumn = Schema::hasColumn('property_contacts', 'reply_email_sent');
-        return view('vendors.property.message', compact('messages', 'intentCounts', 'showReplySentColumn'));
+        $pkg = VendorPermissionHelper::currentPackagePermission((int) Auth::guard('vendor')->id());
+        $showCampaignUi = config('ai.enabled', false) && $pkg && ($pkg->has_ai_features ?? false);
+        $vendorProperties = [];
+        if ($showCampaignUi) {
+            $defaultLang = Language::where('is_default', 1)->first();
+            $vendorProperties = Property::where('vendor_id', Auth::guard('vendor')->id())
+                ->with(['propertyContents' => function ($q) use ($defaultLang) {
+                    if ($defaultLang) {
+                        $q->where('language_id', $defaultLang->id);
+                    }
+                }])
+                ->orderByDesc('created_at')
+                ->limit(100)
+                ->get();
+        }
+        return view('vendors.property.message', compact('messages', 'intentCounts', 'showReplySentColumn', 'showCampaignUi', 'vendorProperties'));
     }
 
     public function destroy(Request $request)
