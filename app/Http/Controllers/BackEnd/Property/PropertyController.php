@@ -128,6 +128,11 @@ class PropertyController extends Controller
         $data['onlineGateways'] = OnlineGateway::query()->where('status', '=', 1)->get();
         $data['offlineGateways'] = OfflineGateway::query()->where('status', '=', 1)->orderBy('serial_number', 'asc')->get();
 
+        $admin = Auth::guard('admin')->user();
+        $creds = $admin ? $admin->socialCredentials : null;
+        $data['whatsapp_channel_link'] = $creds ? $creds->getWhatsAppChannelLink() : null;
+        $data['whatsapp_phone_for_link'] = $creds ? $creds->getWhatsAppPhoneForLink() : null;
+
         return view('backend.property.index', $data);
     }
     public function create(Request $request)

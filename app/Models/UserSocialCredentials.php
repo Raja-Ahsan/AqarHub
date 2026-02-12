@@ -20,6 +20,16 @@ class UserSocialCredentials extends Model
         'tiktok_client_secret',
         'twitter_client_id',
         'twitter_client_secret',
+        'whatsapp_phone_number',
+        'whatsapp_channel_link',
+        'whatsapp_phone_number_id',
+        'whatsapp_business_account_id',
+        'whatsapp_access_token',
+        'whatsapp_alert_wa_id',
+    ];
+
+    protected $casts = [
+        'whatsapp_access_token' => 'encrypted',
     ];
 
     public function connectable(): MorphTo
@@ -45,6 +55,51 @@ class UserSocialCredentials extends Model
     public function hasTwitter(): bool
     {
         return ! empty($this->twitter_client_id) && ! empty($this->twitter_client_secret);
+    }
+
+    public function hasWhatsApp(): bool
+    {
+        return ! empty(trim((string) $this->whatsapp_phone_number));
+    }
+
+    /**
+     * WhatsApp number for Click to Chat (E.164 or national format; strip spaces for wa.me link).
+     */
+    public function getWhatsAppPhoneForLink(): ?string
+    {
+        $num = trim((string) $this->whatsapp_phone_number);
+        if ($num === '') {
+            return null;
+        }
+        return preg_replace('/\D/', '', $num);
+    }
+
+    public function getWhatsAppChannelLink(): ?string
+    {
+        $link = trim((string) $this->whatsapp_channel_link);
+        return $link !== '' ? $link : null;
+    }
+
+    /** Whether WhatsApp Cloud API credentials are set (for receive/reply). */
+    public function hasWhatsAppApi(): bool
+    {
+        return ! empty(trim((string) $this->whatsapp_phone_number_id))
+            && ! empty(trim((string) $this->whatsapp_business_account_id))
+            && ! empty($this->whatsapp_access_token);
+    }
+
+    /** Decrypted access token for API calls (null if not set). */
+    public function getWhatsAppAccessToken(): ?string
+    {
+        $token = $this->whatsapp_access_token;
+        return $token !== null && $token !== '' ? $token : null;
+    }
+
+    /** WA ID (phone digits) to receive "new lead" alerts; optional. */
+    public function getWhatsAppAlertWaId(): ?string
+    {
+        $id = trim((string) ($this->whatsapp_alert_wa_id ?? ''));
+        return $id !== '' ? preg_replace('/\D/', '', $id) : null;
     }
 
     public function getFacebookConfig(): array

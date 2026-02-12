@@ -74,6 +74,18 @@
                         </div>
                     </div>
                 @endif
+                @if (!empty($whatsappPhone))
+                    <div class="col-lg-4 col-md-6">
+                        <div class="card mb-30 color-1" data-aos="fade-up" data-aos-delay="400">
+                            <div class="icon">
+                                <i class="fab fa-whatsapp text-success"></i>
+                            </div>
+                            <div class="card-text">
+                                <p><a href="https://wa.me/{{ $whatsappPhone }}?text={{ rawurlencode(__('I have a question about your properties.')) }}" target="_blank" rel="noopener noreferrer">{{ __('Contact us on WhatsApp') }}</a></p>
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </div>
 
             <div class="pb-70"></div>

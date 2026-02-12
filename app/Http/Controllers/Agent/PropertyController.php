@@ -26,6 +26,7 @@ use App\Models\Property\Spacification;
 use App\Models\Property\SpacificationCotent;
 use App\Models\Property\State;
 use App\Models\Vendor;
+use App\Services\WhatsAppCloudApiService;
 use Config;
 use DB;
 use Illuminate\Http\Request;
@@ -83,6 +84,11 @@ class PropertyController extends Controller
             ->select('properties.*')
             ->orderBy('id', 'desc')
             ->paginate(10);
+
+        $agent = Auth::guard('agent')->user();
+        $creds = $agent ? $agent->socialCredentials : null;
+        $data['whatsapp_channel_link'] = $creds ? $creds->getWhatsAppChannelLink() : null;
+        $data['whatsapp_phone_for_link'] = $creds ? $creds->getWhatsAppPhoneForLink() : null;
 
         return view('agent.property.index', $data);
     }
@@ -452,6 +458,9 @@ class PropertyController extends Controller
         }
 
         $messages = $query->get();
+        $agent = Auth::guard('agent')->user();
+        $creds = $agent->socialCredentials;
+        $hasWhatsAppApi = $creds && $creds->hasWhatsAppApi();
         $intentCounts = [];
         if (Schema::hasColumn('property_contacts', 'intent')) {
             $intentCounts = PropertyContact::where('agent_id', Auth::guard('agent')->user()->id)
@@ -473,7 +482,7 @@ class PropertyController extends Controller
                 ->limit(100)
                 ->get();
         }
-        return view('agent.property.message', compact('messages', 'intentCounts', 'showReplySentColumn', 'showCampaignUi', 'agentProperties'));
+        return view('agent.property.message', compact('messages', 'intentCounts', 'showReplySentColumn', 'showCampaignUi', 'agentProperties', 'hasWhatsAppApi'));
     }
     public function destroyMessage(Request $request)
     {
@@ -575,6 +584,36 @@ class PropertyController extends Controller
         $contact->save();
 
         return response()->json(['success' => true, 'message' => __('Email sent successfully.')]);
+    }
+
+    public function sendWhatsAppReply(Request $request)
+    {
+        $request->validate([
+            'message_id' => 'required|integer',
+            'reply_text' => 'required|string|max:4000',
+        ]);
+
+        $contact = PropertyContact::where('agent_id', Auth::guard('agent')->user()->id)->find($request->message_id);
+        if (! $contact) {
+            return response()->json(['success' => false, 'error' => __('Message not found or access denied.')], 404);
+        }
+
+        $waId = $contact->whatsapp_wa_id ?? null;
+        if (! $waId) {
+            return response()->json(['success' => false, 'error' => __('This contact was not reached via WhatsApp. Use email reply instead.')], 422);
+        }
+
+        $creds = Auth::guard('agent')->user()->socialCredentials;
+        if (! $creds || ! $creds->hasWhatsAppApi()) {
+            return response()->json(['success' => false, 'error' => __('WhatsApp API is not configured. Add credentials in Edit Profile → Social credentials.')], 422);
+        }
+
+        $sent = app(WhatsAppCloudApiService::class)->sendText($creds, $waId, $request->reply_text);
+        if (! $sent) {
+            return response()->json(['success' => false, 'error' => __('WhatsApp message could not be sent. Check credentials and try again.')], 500);
+        }
+
+        return response()->json(['success' => true, 'message' => __('WhatsApp message sent.')]);
     }
 
     public function getStateCities(Request $request)

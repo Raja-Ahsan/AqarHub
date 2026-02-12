@@ -264,6 +264,12 @@
                                                     </td>
 
                                                     <td>
+                                                        @php
+                                                            $propContent = $property->getContent($language->id) ?? $property->propertyContents()->where('language_id', $language->id)->first();
+                                                            $propertyDetailUrl = $propContent && $propContent->slug ? route('frontend.property.details', ['slug' => $propContent->slug]) : url('/');
+                                                            $waPostText = ($propContent ? $propContent->title : __('Property')) . ' - ' . ($property->price ? symbolPrice($property->price) : __('Negotiable')) . ' ' . $propertyDetailUrl;
+                                                            $waStatusText = __('Check this property') . ': ' . ($propContent ? $propContent->title : __('Property')) . ' ' . $propertyDetailUrl;
+                                                        @endphp
                                                         <div class="dropdown">
                                                             <button class="btn btn-secondary dropdown-toggle btn-sm"
                                                                 type="button" id="dropdownMenuButton"
@@ -281,7 +287,19 @@
                                                                         <i class="fas fa-edit"></i> {{ __('Edit') }}
                                                                     </span>
                                                                 </a>
-
+                                                                @if (!empty($whatsapp_channel_link))
+                                                                <a class="dropdown-item" href="{{ $whatsapp_channel_link }}" target="_blank" rel="noopener noreferrer" title="{{ __('Open your WhatsApp Channel to post.') }}">
+                                                                    <span class="btn-label"><i class="fab fa-whatsapp"></i> {{ __('Post to WhatsApp Channel') }}</span>
+                                                                </a>
+                                                                <a class="dropdown-item wa-copy-post" href="#" data-text="{{ $waPostText }}" title="{{ __('Copy suggested post text') }}">
+                                                                    <span class="btn-label"><i class="fas fa-copy"></i> {{ __('Copy channel post text') }}</span>
+                                                                </a>
+                                                                @endif
+                                                                @if (!empty($whatsapp_phone_for_link))
+                                                                <a class="dropdown-item" href="https://wa.me/{{ $whatsapp_phone_for_link }}?text={{ rawurlencode($waStatusText) }}" target="_blank" rel="noopener noreferrer" title="{{ __('Opens WhatsApp; you can share to your Status.') }}">
+                                                                    <span class="btn-label"><i class="fab fa-whatsapp"></i> {{ __('Share on WhatsApp Status') }}</span>
+                                                                </a>
+                                                                @endif
                                                                 <form class="deleteForm d-inline-block dropdown-item"
                                                                     action="{{ route('vendor.property_management.delete_property') }}"
                                                                     method="post">
@@ -553,4 +571,42 @@
         var stripe_key = "{{ $stripe_key ?? '' }}";
     </script>
     <script src="{{ asset('assets/js/feature-payment.js') }}"></script>
+    <script>
+        document.querySelectorAll('.wa-copy-post').forEach(function (el) {
+            el.addEventListener('click', function (e) {
+                e.preventDefault();
+                var text = this.getAttribute('data-text') || '';
+                if (!text) return;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(function () {
+                        var label = el.querySelector('.btn-label');
+                        if (label) {
+                            var orig = label.innerHTML;
+                            label.innerHTML = '<i class="fas fa-check"></i> {{ __("Copied!") }}';
+                            setTimeout(function () { label.innerHTML = orig; }, 1500);
+                        }
+                    });
+                } else {
+                    var ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.setAttribute('readonly', '');
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try {
+                        document.execCommand('copy');
+                        var label = el.querySelector('.btn-label');
+                        if (label) {
+                            var orig = label.innerHTML;
+                            label.innerHTML = '<i class="fas fa-check"></i> {{ __("Copied!") }}';
+                            setTimeout(function () { label.innerHTML = orig; }, 1500);
+                        }
+                    } finally {
+                        document.body.removeChild(ta);
+                    }
+                }
+            });
+        });
+    </script>
 @endsection

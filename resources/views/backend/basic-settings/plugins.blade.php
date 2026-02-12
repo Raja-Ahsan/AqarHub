@@ -430,6 +430,33 @@
                     <p class="mt-1 mb-0 text-danger">{{ $errors->first('whatsapp_popup_message') }}</p>
                   @endif
                 </div>
+
+                @if (\Illuminate\Support\Facades\Schema::hasColumn('basic_settings', 'whatsapp_webhook_verify_token'))
+                <div class="form-group">
+                  <label>{{ __('WhatsApp Webhook Verify Token') }}</label>
+                  <input type="text" class="form-control" name="whatsapp_webhook_verify_token" value="{{ $data->whatsapp_webhook_verify_token ?? '' }}" placeholder="{{ __('Set in Meta App → WhatsApp → Configuration') }}">
+                  <small class="text-muted">{{ __('Required for Receive & Reply. Use this value when subscribing the webhook URL') }}: {{ rtrim(config('app.url'), '/') }}/api/whatsapp/webhook</small>
+                  @if ($errors->has('whatsapp_webhook_verify_token'))
+                    <p class="mt-1 mb-0 text-danger">{{ $errors->first('whatsapp_webhook_verify_token') }}</p>
+                  @endif
+                </div>
+                @endif
+                @if (\Illuminate\Support\Facades\Schema::hasColumn('basic_settings', 'whatsapp_enabled'))
+                <div class="form-group">
+                  <label>{{ __('WhatsApp features (API / broadcast)') }}</label>
+                  <div class="selectgroup w-100">
+                    <label class="selectgroup-item">
+                      <input type="radio" name="whatsapp_enabled" value="1" class="selectgroup-input" {{ ($data->whatsapp_enabled ?? 1) == 1 ? 'checked' : '' }}>
+                      <span class="selectgroup-button">{{ __('Enabled') }}</span>
+                    </label>
+                    <label class="selectgroup-item">
+                      <input type="radio" name="whatsapp_enabled" value="0" class="selectgroup-input" {{ ($data->whatsapp_enabled ?? 1) == 0 ? 'checked' : '' }}>
+                      <span class="selectgroup-button">{{ __('Disabled') }}</span>
+                    </label>
+                  </div>
+                  <small class="text-muted">{{ __('Disable to turn off WhatsApp API, webhook and broadcast. Click-to-chat can still use the number above.') }}</small>
+                </div>
+                @endif
               </div>
             </div>
           </div>

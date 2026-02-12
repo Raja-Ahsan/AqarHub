@@ -201,6 +201,9 @@ Route::prefix('/admin')->middleware('auth:admin')->group(function () {
   // property messages 
   Route::get('/property-messages', 'BackEnd\Property\PropertyMessageController@index')->name('admin.property_message.index');
   Route::post('/message-delete', 'BackEnd\Property\PropertyMessageController@destroy')->name('admin.property_message.destroy');
+  Route::post('/send-whatsapp-reply', 'BackEnd\Property\PropertyMessageController@sendWhatsAppReply')->name('admin.send_whatsapp_reply');
+  Route::get('/whatsapp-broadcast', 'BackEnd\Property\PropertyMessageController@broadcastForm')->name('admin.whatsapp_broadcast.form');
+  Route::post('/whatsapp-broadcast', 'BackEnd\Property\PropertyMessageController@broadcastSend')->name('admin.whatsapp_broadcast.send');
   // agent Management 
   Route::prefix('agent-management')->group(function () {
     Route::get('/', 'BackEnd\AgentController@index')->name('admin.agent_management.index');

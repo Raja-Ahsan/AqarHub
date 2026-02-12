@@ -100,6 +100,10 @@ class PropertyController extends Controller
         $data['offlineGateways'] = $offlineGateways;
         $package = VendorPermissionHelper::currentPackagePermission(Auth::guard('vendor')->id());
         $data['has_ai_features'] = $package && $package->has_ai_features;
+        $vendor = Auth::guard('vendor')->user();
+        $creds = $vendor->socialCredentials;
+        $data['whatsapp_channel_link'] = $creds ? $creds->getWhatsAppChannelLink() : null;
+        $data['whatsapp_phone_for_link'] = $creds ? $creds->getWhatsAppPhoneForLink() : null;
         return view('vendors.property.index', $data);
     }
 

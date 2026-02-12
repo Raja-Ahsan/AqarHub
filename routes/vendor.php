@@ -135,6 +135,7 @@ Route::prefix('vendor')->middleware('auth:vendor', 'Deactive')->group(function (
     Route::get('/messages', 'Vendor\PropertyMessageController@index')->name('vendor.property_message.index');
     Route::post('/message-delete', 'Vendor\PropertyMessageController@destroy')->name('vendor.property_message.delete');
     Route::post('/send-inquiry-reply', 'Vendor\PropertyMessageController@sendReply')->name('vendor.send_inquiry_reply');
+    Route::post('/send-whatsapp-reply', 'Vendor\PropertyMessageController@sendWhatsAppReply')->name('vendor.send_whatsapp_reply');
 
     Route::get('/auto-reply-settings', 'Vendor\AutoReplySettingsController@index')->name('vendor.auto_reply_settings.index');
     Route::post('/auto-reply-settings', 'Vendor\AutoReplySettingsController@update')->name('vendor.auto_reply_settings.update');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\FrontEnd;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\FrontEnd\MiscellaneousController;
 use App\Http\Requests\MailFromUserRequest;
+use App\Models\Admin;
 use App\Models\BasicSettings\Basic;
 use Config;
 use DB;
@@ -27,6 +28,11 @@ class ContactController extends Controller
 		$queryResult['bgImg'] = $misc->getBreadcrumb();
 
 		$queryResult['info'] = Basic::select('email_address', 'contact_number', 'address', 'google_recaptcha_status', 'latitude', 'longitude')->firstOrFail();
+
+		$admin = Admin::with('socialCredentials')->where('role_id', null)->first();
+		$queryResult['whatsappPhone'] = $admin && $admin->socialCredentials && $admin->socialCredentials->hasWhatsApp()
+			? $admin->socialCredentials->getWhatsAppPhoneForLink()
+			: null;
 
 		return view('frontend.contact', $queryResult);
 	}

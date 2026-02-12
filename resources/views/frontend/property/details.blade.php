@@ -338,9 +338,31 @@
                                         @endif
                                     @endif
                                 </a>
+                                @php
+                                    $whatsappContact = !empty($agent) ? $agent : (!empty($vendor) ? $vendor : $admin);
+                                    $whatsappPhone = $whatsappContact && $whatsappContact->socialCredentials && $whatsappContact->socialCredentials->hasWhatsApp() ? $whatsappContact->socialCredentials->getWhatsAppPhoneForLink() : null;
+                                    $whatsappPretext = $whatsappPhone ? rawurlencode(__('Hi, I\'m interested in') . ' ' . $propertyContent->title . ' – ' . route('frontend.property.details', $propertyContent->slug)) : '';
+                                @endphp
+                                @if ($whatsappPhone)
+                                    <a class="d-block mt-2" href="https://wa.me/{{ $whatsappPhone }}{{ $whatsappPretext ? '?text=' . $whatsappPretext : '' }}" target="_blank" rel="noopener noreferrer">
+                                        <i class="fab fa-whatsapp text-success mr-1"></i> {{ __('Chat on WhatsApp') }}
+                                    </a>
+                                @endif
                             </div>
                         </div>
 
+                        @if (session('success'))
+                                <div class="alert alert-success mb-20">
+                                    {{ session('success') }}
+                                    @if (session('whatsapp_continue_url'))
+                                        <div class="mt-2">
+                                            <a href="{{ session('whatsapp_continue_url') }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success">
+                                                <i class="fab fa-whatsapp"></i> {{ __('Continue on WhatsApp') }}
+                                            </a>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
                         <form action="{{ route('property_contact') }}" method="POST">
                             @csrf
                             @if (!empty($agent))
@@ -381,6 +403,14 @@
                                     <p class=" text-danger">{{ $message }}</p>
                                 @enderror
                             </div>
+                            @if (\Illuminate\Support\Facades\Schema::hasColumn('property_contacts', 'whatsapp_consent'))
+                                <div class="form-group mb-20">
+                                    <label class="d-flex align-items-center">
+                                        <input type="checkbox" name="whatsapp_consent" value="1" {{ old('whatsapp_consent') ? 'checked' : '' }} class="mr-2">
+                                        <span>{{ __('Receive property updates on WhatsApp') }}</span>
+                                    </label>
+                                </div>
+                            @endif
                             @if ($info->google_recaptcha_status == 1)
                                 <div class="form-group mb-30">
                                     {!! NoCaptcha::renderJs() !!}

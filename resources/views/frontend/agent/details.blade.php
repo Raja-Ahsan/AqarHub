@@ -67,7 +67,18 @@
                                             <a href="mailTo:{{ $agent->email }}">{{ $agent->email }}
                                             </a>
                                         </div>
+                                    </li>
+                                @endif
 
+                                @if ($agent->socialCredentials && $agent->socialCredentials->hasWhatsApp())
+                                    <li class="icon-start">
+                                        <div>
+                                            <i class="fab fa-whatsapp text-success"></i>
+                                            <span>{{ __('WhatsApp') }}:</span>
+                                        </div>
+                                        <div>
+                                            <a href="https://wa.me/{{ $agent->socialCredentials->getWhatsAppPhoneForLink() }}" target="_blank" rel="noopener noreferrer">{{ __('Contact via WhatsApp') }}</a>
+                                        </div>
                                     </li>
                                 @endif
 

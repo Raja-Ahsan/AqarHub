@@ -58,6 +58,13 @@
                             <span id="aiSuggestReplyStatus" class="ml-2 small text-muted"></span>
                         </div>
                     </div>
+                    @elseif (!empty($hasWhatsAppApi))
+                    <div class="col-lg-12 mt-2">
+                        <div class="form-group">
+                            <label for="in_suggested_reply">{{ __('Reply message (for WhatsApp)') }}</label>
+                            <textarea rows="3" class="form-control" id="in_suggested_reply" placeholder="{{ __('Type your reply to send via WhatsApp.') }}"></textarea>
+                        </div>
+                    </div>
                     @endif
                 </div>
             </div>
@@ -65,6 +72,7 @@
             <div class="modal-footer">
                 <input type="hidden" id="in_id" value="">
                 <input type="hidden" id="in_propertyId" value="">
+                <input type="hidden" id="in_whatsappWaId" value="">
                 <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
                     {{ __('Close') }}
                 </button>
@@ -73,6 +81,12 @@
                     <i class="fas fa-paper-plane"></i> {{ __('Send reply by email') }}
                 </button>
                 <span id="sendReplyStatus" class="ml-2 small"></span>
+                @endif
+                @if (!empty($hasWhatsAppApi))
+                <button type="button" id="sendWhatsAppReplyBtn" class="btn btn-success btn-sm" title="{{ __('Reply via WhatsApp (contact must have messaged via WhatsApp)') }}">
+                    <i class="fab fa-whatsapp"></i> {{ __('Reply via WhatsApp') }}
+                </button>
+                <span id="sendWhatsAppReplyStatus" class="ml-2 small"></span>
                 @endif
             </div>
         </div>

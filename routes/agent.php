@@ -116,6 +116,7 @@ Route::prefix('agent')->middleware('auth:agent')->group(function () {
     Route::get('/messages', 'Agent\PropertyController@messages')->name('agent.property_message.index');
     Route::post('/message-delete', 'Agent\PropertyController@destroyMessage')->name('agent.property_message.delete');
     Route::post('/send-inquiry-reply', 'Agent\PropertyController@sendReply')->name('agent.send_inquiry_reply');
+    Route::post('/send-whatsapp-reply', 'Agent\PropertyController@sendWhatsAppReply')->name('agent.send_whatsapp_reply');
 
     Route::get('/auto-reply-settings', 'Agent\AutoReplySettingsController@index')->name('agent.auto_reply_settings.index');
     Route::post('/auto-reply-settings', 'Agent\AutoReplySettingsController@update')->name('agent.auto_reply_settings.update');

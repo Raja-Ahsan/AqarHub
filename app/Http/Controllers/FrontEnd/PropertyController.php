@@ -350,14 +350,13 @@ class PropertyController extends Controller
         }])->where('property_id', $property->property_id)->get();
         $information['agent'] = Agent::with(['agent_info' => function ($q) use ($language) {
             $q->where('language_id', $language->id);
-        }])->find($property->agent_id);
-
+        }, 'socialCredentials'])->find($property->agent_id);
 
         $information['vendor'] = Vendor::with(['vendor_info' => function ($q) use ($language) {
             $q->where('language_id', $language->id);
-        }])->find($property->vendor_id);
+        }, 'socialCredentials'])->find($property->vendor_id);
 
-        $information['admin']  = Admin::where('role_id', null)->first();
+        $information['admin'] = Admin::with('socialCredentials')->where('role_id', null)->first();
 
 
         $categories = PropertyCategory::where('status', 1)->with(['categoryContent' => function ($q) use ($language) {
@@ -472,15 +471,45 @@ class PropertyController extends Controller
             if (\Illuminate\Support\Facades\Schema::hasColumn('property_contacts', 'unsubscribe_token')) {
                 $contactAttrs['unsubscribe_token'] = \Illuminate\Support\Str::random(64);
             }
-            PropertyContact::create($contactAttrs);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('property_contacts', 'whatsapp_consent')) {
+                $contactAttrs['whatsapp_consent'] = $request->boolean('whatsapp_consent') ? 1 : 0;
+            }
+            $contact = PropertyContact::create($contactAttrs);
             $this->sendMail($request);
+            app(\App\Services\WhatsAppNewLeadNotificationService::class)->notifyIfConfigured($contact);
+
+            $whatsappUrl = $this->getWhatsAppContinueUrl($request);
+            return redirect()->back()->with('success', __('Message sent successfully'))->with('whatsapp_continue_url', $whatsappUrl);
         } catch (\Exception $e) {
             return back()->with('error', 'Something went wrong!');
         }
+    }
 
-
-
-        return back()->with('success', 'Message sent successfully');
+    /**
+     * Build wa.me URL for "Continue on WhatsApp" after inquiry (vendor/agent/admin number from DB).
+     */
+    protected function getWhatsAppContinueUrl(Request $request): ?string
+    {
+        $phone = null;
+        if ($request->vendor_id && $request->agent_id) {
+            $agent = Agent::with('socialCredentials')->find($request->agent_id);
+            $phone = $agent?->socialCredentials?->getWhatsAppPhoneForLink();
+        } elseif ($request->vendor_id) {
+            $vendor = Vendor::with('socialCredentials')->find($request->vendor_id);
+            $phone = $vendor?->socialCredentials?->getWhatsAppPhoneForLink();
+        }
+        if (! $phone) {
+            $admin = Admin::with('socialCredentials')->where('role_id', null)->first();
+            $phone = $admin?->socialCredentials?->getWhatsAppPhoneForLink();
+        }
+        if (! $phone) {
+            return null;
+        }
+        $propertyId = $request->property_id;
+        $slug = $propertyId ? \App\Models\Property\Property::find($propertyId)?->propertyContent?->slug : null;
+        $propertyUrl = $slug ? url('/property/' . $slug) : url()->current();
+        $text = rawurlencode(__('Hi, I just sent an inquiry about a property. Let\'s continue the conversation here.') . ' ' . $propertyUrl);
+        return 'https://wa.me/' . $phone . '?text=' . $text;
     }
 
     /**
@@ -550,15 +579,21 @@ class PropertyController extends Controller
             if (Schema::hasColumn('property_contacts', 'unsubscribe_token')) {
                 $contactData['unsubscribe_token'] = \Illuminate\Support\Str::random(64);
             }
-            PropertyContact::create($contactData);
+            if (Schema::hasColumn('property_contacts', 'whatsapp_consent')) {
+                $contactData['whatsapp_consent'] = $request->boolean('whatsapp_consent') ? 1 : 0;
+            }
+            $contact = PropertyContact::create($contactData);
             $this->sendMail($request);
+            app(\App\Services\WhatsAppNewLeadNotificationService::class)->notifyIfConfigured($contact);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'error' => __('Something went wrong!')], 500);
         }
 
+        $whatsappUrl = $this->getWhatsAppContinueUrl($request);
         return response()->json([
             'success' => true,
             'message' => __('Message sent successfully'),
+            'whatsapp_continue_url' => $whatsappUrl,
             'confirmation' => __('Your real estate request has been sent successfully.'),
         ]);
     }

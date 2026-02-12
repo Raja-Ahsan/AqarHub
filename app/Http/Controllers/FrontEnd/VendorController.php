@@ -120,7 +120,7 @@ class VendorController extends Controller
         if ($request->admin == true) {
             $vendor = Admin::with(['adminInfo' => function ($q) use ($language) {
                 $q->where('language_id', $language->id);
-            }])->where('role_id', null)->first();
+            }, 'socialCredentials'])->where('role_id', null)->first();
             $vendor_id = 0;
             $queryResult['total_properties'] = Property::where('vendor_id', 0)->count();
         } else {
@@ -133,7 +133,7 @@ class VendorController extends Controller
                 ->where('vendors.username', $request->username)
                 ->with(['vendor_info' => function ($q) use ($language) {
                     $q->where('language_id', $language->id);
-                }])
+                }, 'socialCredentials'])
                 ->select('vendors.*')
                 ->firstOrFail();
             $vendor_id = $vendor->id;

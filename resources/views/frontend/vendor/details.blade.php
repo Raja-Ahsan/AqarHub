@@ -73,6 +73,18 @@
                                     </li>
                                 @endif
 
+                                @if ($vendor->socialCredentials && $vendor->socialCredentials->hasWhatsApp())
+                                    <li class="icon-start">
+                                        <div>
+                                            <i class="fab fa-whatsapp text-success"></i>
+                                            <span>{{ __('WhatsApp') }}:</span>
+                                        </div>
+                                        <div>
+                                            <a href="https://wa.me/{{ $vendor->socialCredentials->getWhatsAppPhoneForLink() }}" target="_blank" rel="noopener noreferrer">{{ __('Contact via WhatsApp') }}</a>
+                                        </div>
+                                    </li>
+                                @endif
+
                                 @if (request()->input('admin') != true)
                                     @if (!is_null(@$vendorInfo->city))
                                         <li class="icon-start">

@@ -356,9 +356,14 @@ class BasicController extends Controller
 
   public function plugins()
   {
-    $data = DB::table('basic_settings')
-      ->select('disqus_status', 'disqus_short_name', 'google_recaptcha_status', 'google_recaptcha_site_key', 'google_recaptcha_secret_key', 'whatsapp_status', 'whatsapp_number', 'whatsapp_header_title', 'whatsapp_popup_status', 'whatsapp_popup_message', 'facebook_login_status', 'facebook_app_id', 'facebook_app_secret', 'google_login_status', 'google_client_id', 'google_client_secret', 'tawkto_status', 'tawkto_direct_chat_link')
-      ->first();
+    $select = ['disqus_status', 'disqus_short_name', 'google_recaptcha_status', 'google_recaptcha_site_key', 'google_recaptcha_secret_key', 'whatsapp_status', 'whatsapp_number', 'whatsapp_header_title', 'whatsapp_popup_status', 'whatsapp_popup_message', 'facebook_login_status', 'facebook_app_id', 'facebook_app_secret', 'google_login_status', 'google_client_id', 'google_client_secret', 'tawkto_status', 'tawkto_direct_chat_link'];
+    if (Schema::hasColumn('basic_settings', 'whatsapp_webhook_verify_token')) {
+      $select[] = 'whatsapp_webhook_verify_token';
+    }
+    if (Schema::hasColumn('basic_settings', 'whatsapp_enabled')) {
+      $select[] = 'whatsapp_enabled';
+    }
+    $data = DB::table('basic_settings')->select($select)->first();
 
     return view('backend.basic-settings.plugins', ['data' => $data]);
   }
@@ -564,16 +569,23 @@ class BasicController extends Controller
       return redirect()->back()->withErrors($validator->errors());
     }
 
-    DB::table('basic_settings')->updateOrInsert(
-      ['uniqid' => 12345],
-      [
+    $payload = [
         'whatsapp_status' => $request->whatsapp_status,
         'whatsapp_number' => $request->whatsapp_number,
         'whatsapp_header_title' => $request->whatsapp_header_title,
         'whatsapp_popup_status' => $request->whatsapp_popup_status,
-        'whatsapp_popup_message' => $request->whatsapp_popup_message
-      ]
-    );
+        'whatsapp_popup_message' => $request->whatsapp_popup_message,
+      ];
+      if (Schema::hasColumn('basic_settings', 'whatsapp_webhook_verify_token')) {
+        $payload['whatsapp_webhook_verify_token'] = $request->filled('whatsapp_webhook_verify_token') ? trim($request->whatsapp_webhook_verify_token) : null;
+      }
+      if (Schema::hasColumn('basic_settings', 'whatsapp_enabled')) {
+        $payload['whatsapp_enabled'] = $request->boolean('whatsapp_enabled') ? 1 : 0;
+      }
+      DB::table('basic_settings')->updateOrInsert(
+        ['uniqid' => 12345],
+        $payload
+      );
 
     Session::flash('success', 'WhatsApp info updated successfully!');
 

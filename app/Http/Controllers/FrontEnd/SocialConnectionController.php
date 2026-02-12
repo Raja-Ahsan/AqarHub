@@ -382,6 +382,12 @@ class SocialConnectionController extends Controller
             'tiktok_client_secret' => ['nullable', 'string', 'max:500'],
             'twitter_client_id' => ['nullable', 'string', 'max:500'],
             'twitter_client_secret' => ['nullable', 'string', 'max:500'],
+            'whatsapp_phone_number' => ['nullable', 'string', 'max:50'],
+            'whatsapp_channel_link' => ['nullable', 'string', 'max:500'],
+            'whatsapp_phone_number_id' => ['nullable', 'string', 'max:100'],
+            'whatsapp_business_account_id' => ['nullable', 'string', 'max:100'],
+            'whatsapp_access_token' => ['nullable', 'string', 'max:2000'],
+            'whatsapp_alert_wa_id' => ['nullable', 'string', 'max:50'],
         ];
         $validator = Validator::make($request->all(), $rules);
         if ($validator->fails()) {
@@ -391,6 +397,15 @@ class SocialConnectionController extends Controller
         foreach (['facebook_app_secret', 'linkedin_client_secret', 'tiktok_client_secret', 'twitter_client_secret'] as $key) {
             if (($data[$key] ?? '') === '') {
                 unset($data[$key]);
+            }
+        }
+        if (($data['whatsapp_access_token'] ?? '') === '') {
+            unset($data['whatsapp_access_token']);
+        }
+        foreach (['whatsapp_phone_number', 'whatsapp_channel_link', 'whatsapp_phone_number_id', 'whatsapp_business_account_id', 'whatsapp_alert_wa_id'] as $key) {
+            $data[$key] = isset($data[$key]) ? trim($data[$key]) : null;
+            if ($data[$key] === '') {
+                $data[$key] = null;
             }
         }
         $creds = UserSocialCredentials::firstOrCreate(

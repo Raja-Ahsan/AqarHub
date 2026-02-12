@@ -35,7 +35,7 @@ class AgentController extends Controller
                     ->where('memberships.start_date', '<=', Carbon::now()->format('Y-m-d'))
                     ->where('memberships.expire_date', '>=', Carbon::now()->format('Y-m-d'));
             })
-
+            ->with('socialCredentials')
             ->where('agents.username', $request->username)->select('agents.*')->firstOrFail();
 
         $agentInfo = AgentInfo::where([['agent_id', $agent->id], ['language_id', $language->id]])->first();

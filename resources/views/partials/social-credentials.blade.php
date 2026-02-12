@@ -144,6 +144,67 @@
                 </div>
             </div>
 
+            {{-- WhatsApp (number + channel link; all settings in DB, no .env) --}}
+            <div class="border rounded mb-3 p-2">
+                <div class="d-flex align-items-center justify-content-between flex-wrap">
+                    <h6 class="text-success mb-0">{{ __('WhatsApp') }}</h6>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-toggle="collapse" data-target="#socialHelpWhatsApp" aria-expanded="false" aria-controls="socialHelpWhatsApp">
+                        <span class="fa fa-question-circle mr-1"></span> {{ __('How to connect & get keys') }}
+                    </button>
+                </div>
+                <div class="collapse mt-2" id="socialHelpWhatsApp">
+                    <div class="small text-muted bg-light p-3 rounded">
+                        <strong>{{ __('WhatsApp (Click to Chat & Channel):') }}</strong>
+                        <ul class="mb-0 pl-3">
+                            <li>{{ __('Phone number:') }} {{ __('Enter your WhatsApp Business number (with country code, e.g. 1234567890). Used for "Chat on WhatsApp" buttons on your listings and profile.') }}</li>
+                            <li>{{ __('Channel link:') }} {{ __('Optional. Create a WhatsApp Channel in the WhatsApp app, then paste the channel invite link here.') }}</li>
+                            <li><strong>{{ __('Receive & Reply (API):') }}</strong> {{ __('To receive messages and reply from the panel, add WhatsApp Business API credentials: go to') }} <a href="https://developers.facebook.com/docs/whatsapp/cloud-api" target="_blank" rel="noopener">WhatsApp Cloud API</a>, {{ __('create an app, add WhatsApp product, get Phone Number ID and Business Account ID from the app dashboard, and generate a permanent token. Set the webhook URL in Meta to your site') }} <code>{{ rtrim(config('app.url'), '/') }}/api/whatsapp/webhook</code>. {{ __('Admin must set Webhook Verify Token in Basic Settings.') }}</li>
+                            <li>{{ __('All settings are saved in your profile (database); nothing is stored in .env.') }}</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-6 mb-2">
+                        <label class="font-weight-bold">{{ __('WhatsApp phone number') }}</label>
+                        <input type="text" class="form-control" name="whatsapp_phone_number" value="{{ old('whatsapp_phone_number', $c ? $c->whatsapp_phone_number : '') }}" placeholder="e.g. 1234567890 (with country code)" maxlength="50" autocomplete="off">
+                        @error('whatsapp_phone_number')<small class="text-danger">{{ $message }}</small>@enderror
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="font-weight-bold">{{ __('WhatsApp Channel link') }}</label>
+                        <input type="url" class="form-control" name="whatsapp_channel_link" value="{{ old('whatsapp_channel_link', $c ? $c->whatsapp_channel_link : '') }}" placeholder="https://whatsapp.com/channel/..." maxlength="500" autocomplete="off">
+                        @error('whatsapp_channel_link')<small class="text-danger">{{ $message }}</small>@enderror
+                    </div>
+                </div>
+                <p class="mb-1 mt-2 small text-muted">{{ __('Receive & Reply (optional):') }}</p>
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <label class="font-weight-bold">{{ __('Phone Number ID') }}</label>
+                        <input type="text" class="form-control" name="whatsapp_phone_number_id" value="{{ old('whatsapp_phone_number_id', $c ? $c->whatsapp_phone_number_id : '') }}" placeholder="From Meta app dashboard" maxlength="100" autocomplete="off">
+                        @error('whatsapp_phone_number_id')<small class="text-danger">{{ $message }}</small>@enderror
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="font-weight-bold">{{ __('Business Account ID') }}</label>
+                        <input type="text" class="form-control" name="whatsapp_business_account_id" value="{{ old('whatsapp_business_account_id', $c ? $c->whatsapp_business_account_id : '') }}" placeholder="From Meta app dashboard" maxlength="100" autocomplete="off">
+                        @error('whatsapp_business_account_id')<small class="text-danger">{{ $message }}</small>@enderror
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="font-weight-bold">{{ __('Access token') }}</label>
+                        <input type="password" class="form-control" name="whatsapp_access_token" value="" placeholder="{{ $c && $c->whatsapp_access_token ? '•••••••• (leave blank to keep)' : 'Permanent token' }}" maxlength="2000" autocomplete="new-password">
+                        @error('whatsapp_access_token')<small class="text-danger">{{ $message }}</small>@enderror
+                    </div>
+                </div>
+                @if (\Illuminate\Support\Facades\Schema::hasColumn('user_social_credentials', 'whatsapp_alert_wa_id'))
+                <div class="row mt-1">
+                    <div class="col-md-12 mb-2">
+                        <label class="font-weight-bold">{{ __('Alert WhatsApp number (new lead notifications)') }}</label>
+                        <input type="text" class="form-control" name="whatsapp_alert_wa_id" value="{{ old('whatsapp_alert_wa_id', $c ? $c->whatsapp_alert_wa_id : '') }}" placeholder="{{ __('Your personal number to receive new lead alerts') }}" maxlength="50" autocomplete="off">
+                        <small class="text-muted">{{ __('Optional. With country code, digits only. You will receive a WhatsApp when a new lead is created.') }}</small>
+                        @error('whatsapp_alert_wa_id')<small class="text-danger">{{ $message }}</small>@enderror
+                    </div>
+                </div>
+                @endif
+            </div>
+
             <button type="submit" class="btn btn-primary">{{ __('Save credentials') }}</button>
         </form>
     </div>

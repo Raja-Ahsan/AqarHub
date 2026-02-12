@@ -17,6 +17,7 @@ use App\Models\Property\PropertyContact;
 use App\Models\Property\StateContent;
 use App\Jobs\BulkGenerateDescriptionJob;
 use App\Jobs\SendCampaignEmailJob;
+use App\Jobs\SendCampaignWhatsAppJob;
 use App\Models\Admin;
 use App\Models\SocialConnection;
 use App\Models\Vendor;
@@ -1239,6 +1240,9 @@ class AiAssistantController extends Controller
         $websiteTitle = $basic ?: config('app.name');
 
         $delaySeconds = 5;
+        $connectableType = Auth::guard('vendor')->check() ? Vendor::class : Agent::class;
+        $connectableId = (int) (Auth::guard('vendor')->id() ?? Auth::guard('agent')->id());
+        $whatsappCount = 0;
         foreach ($contacts as $index => $contact) {
             SendCampaignEmailJob::dispatch(
                 $contact->id,
@@ -1247,11 +1251,27 @@ class AiAssistantController extends Controller
                 $senderName,
                 $websiteTitle
             )->delay(now()->addSeconds($index * $delaySeconds));
+            $hasPhone = ! empty(trim((string) $contact->phone)) || ! empty(trim((string) ($contact->whatsapp_wa_id ?? '')));
+            $hasWhatsAppConsent = ! Schema::hasColumn('property_contacts', 'whatsapp_consent') || ! empty($contact->whatsapp_consent);
+            if ($hasPhone && $hasWhatsAppConsent) {
+                SendCampaignWhatsAppJob::dispatch(
+                    $contact->id,
+                    $request->campaign_type,
+                    $propertyId,
+                    $connectableType,
+                    $connectableId
+                )->delay(now()->addSeconds($index * $delaySeconds + 3));
+                $whatsappCount++;
+            }
         }
 
+        $message = __('Campaign emails are being sent to :count lead(s). They will receive personalized updates shortly.', ['count' => $contacts->count()]);
+        if ($whatsappCount > 0) {
+            $message .= ' ' . __(':wa_count will also receive the update via WhatsApp.', ['wa_count' => $whatsappCount]);
+        }
         return response()->json([
             'success' => true,
-            'message' => __('Campaign emails are being sent to :count lead(s). They will receive personalized updates shortly.', ['count' => $contacts->count()]),
+            'message' => $message,
             'queued_count' => $contacts->count(),
         ]);
     }
