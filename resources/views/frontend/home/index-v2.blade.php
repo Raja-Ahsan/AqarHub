@@ -750,6 +750,8 @@
                                                             </li>
                                                         @endif
 
+                                                        @include('partials.package-ai-features', ['package' => $package])
+
                                                     </ul>
                                                     <a href="{{ auth('vendor')->check() ? route('vendor.plan.extend.index') : route('vendor.login') }}"
                                                         class="btn btn-outline btn-lg rounded-pill w-100">
@@ -919,6 +921,8 @@
                                                                 {{ __('Additional Features') }}({{ __('Per Project') }})
                                                             </li>
                                                         @endif
+
+                                                        @include('partials.package-ai-features', ['package' => $package])
 
                                                     </ul>
                                                     <a href="{{ auth('vendor')->check() ? route('vendor.plan.extend.index') : route('vendor.login') }}"
@@ -1092,6 +1096,8 @@
                                                                 ({{ __('Per Project') }})
                                                             </li>
                                                         @endif
+
+                                                        @include('partials.package-ai-features', ['package' => $package])
 
                                                     </ul>
 

@@ -121,7 +121,16 @@
                             {{ $package->number_of_project_gallery_images }}</li>
                         <li>{{ __('Additional Feature (per project)') . ' : ' }}
                             {{ $package->number_of_property_adittionl_specifications }}</li>
-                        <li>{{ __('AI Assistant (Generate with AI, Suggest from image, Translate)') . ' : ' }} {{ ($package->has_ai_features ?? false) ? __('Yes') : __('No') }}</li>
+                        @if (config('ai.enabled', false))
+                            @php $hasAi = $package->has_ai_features ?? false; @endphp
+                            @if ($hasAi && !empty(config('ai.package_features')))
+                                @foreach (config('ai.package_features') as $label)
+                                    <li><i class="fal fa-check mr-1"></i> {{ __($label) }}</li>
+                                @endforeach
+                            @else
+                                <li>{{ __('AI features') . ' : ' }} {{ $hasAi ? __('Yes') : __('No') }}</li>
+                            @endif
+                        @endif
                     </ul>
 
                     @php

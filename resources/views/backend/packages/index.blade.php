@@ -327,9 +327,16 @@
                             <div class="form-check">
                                 <input type="hidden" name="has_ai_features" value="0">
                                 <input type="checkbox" class="form-check-input" name="has_ai_features" id="has_ai_features" value="1">
-                                <label class="form-check-label" for="has_ai_features">{{ __('Include AI features (Generate with AI, Suggest from image, Translate)') }}</label>
+                                <label class="form-check-label" for="has_ai_features">{{ __('Include AI features in this package') }}</label>
                             </div>
-                            <p class="text-muted small mb-0">{{ __('Vendors with this package will get AI-powered property tools.') }}</p>
+                            <p class="text-muted small mb-0">{{ __('Vendors with this package will get the following AI tools:') }}</p>
+                            @if (config('ai.enabled', false) && !empty(config('ai.package_features')))
+                                <ul class="small text-muted mb-0 pl-3 mt-1">
+                                    @foreach (config('ai.package_features') as $label)
+                                        <li>{{ __($label) }}</li>
+                                    @endforeach
+                                </ul>
+                            @endif
                         </div>
 
                         <div class="form-group">

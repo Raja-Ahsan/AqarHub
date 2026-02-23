@@ -4,6 +4,9 @@
 /storage/*.key
 .env
 .env.backup
+
+# Database dumps may contain secrets (API keys, etc.) - do not commit
+/db/*.sql
 .phpunit.result.cache
 docker-compose.override.yml
 Homestead.json

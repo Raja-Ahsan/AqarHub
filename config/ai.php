@@ -52,4 +52,25 @@ return [
     */
     'save_chat_history' => env('AI_SAVE_CHAT_HISTORY', true),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Package AI features (point-wise list for pricing/package display)
+    |--------------------------------------------------------------------------
+    | Shown when a package has has_ai_features = true. Used on pricing page,
+    | home page packages section, and vendor/agent package list.
+    */
+    'package_features' => [
+        'generate_description' => 'Generate property/project description with AI',
+        'bulk_generate_description' => 'Bulk generate descriptions for multiple listings',
+        'analyze_image' => 'Analyze image and suggest description',
+        'translate' => 'Translate content with AI',
+        'check_compliance' => 'Check description compliance',
+        'suggest_price' => 'AI-powered price suggestion',
+        'generate_social_copy' => 'Generate social media copy (Facebook, LinkedIn, etc.)',
+        'post_to_social' => 'Post to social pages (Facebook, LinkedIn, Instagram, Twitter, TikTok)',
+        'smart_campaigns' => 'Smart email/WhatsApp campaigns (e.g. price drop, new listing)',
+        'suggest_reply' => 'Suggest reply with AI for inquiries',
+        'lead_intent_scoring' => 'Lead intent & scoring on messages',
+    ],
+
 ];
