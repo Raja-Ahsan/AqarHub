@@ -19,7 +19,7 @@
     <link rel="apple-touch-icon" href="{{ asset('assets/img/' . $websiteInfo->favicon) }}">
 
     @php
-        $primaryColor = 'BDA588';
+        $primaryColor = '9b6131';
         $secoundaryColor = '352008';
         if (!function_exists('checkColorCode')) {
             function checkColorCode($color)

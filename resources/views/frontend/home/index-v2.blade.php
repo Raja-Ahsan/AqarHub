@@ -39,7 +39,7 @@
             </div>
             <div class="banner-ai-cta d-flex flex-wrap gap-2 justify-content-center mt-4 mb-3" style="opacity: 1; visibility: visible;">
                 <button type="button" class="btn btn-dark px-4 py-2" id="banner-show-search-form" style="z-index:2; background-color: #424649;">{{ __('Start Searching') }}</button>
-                <button type="button" class="btn btn-outline-light px-4 py-2" id="banner-open-ai-inline" style="z-index:2; background-color: #BDA588;" aria-label="{{ __('Ask Assistant') }}">{{ __('Ask Assistant') }} &rarr;</button>
+                <button type="button" class="btn btn-outline-light px-4 py-2" id="banner-open-ai-inline" style="z-index:2; background-color: #9b6131;" aria-label="{{ __('Ask Assistant') }}">{{ __('Ask Assistant') }} &rarr;</button>
             </div>
             <div class="banner-filter-form mt-40 d-none" id="banner-filter-form-wrap" data-aos="fade-up">
                 <div class="row justify-content-center">
